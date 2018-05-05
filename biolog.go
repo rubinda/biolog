@@ -7,9 +7,10 @@ import "time"
 // UserService nudi interface vseh metod za delo z uporabniki
 type UserService interface {
 	User(id int) (*User, error)
-	Users() ([]*User, error)
-	CreateUser(u *User) (int, error)
+	Users() ([]User, error)
+	CreateUser(u *User) (*User, error)
 	DeleteUser(id int) (int64, error)
+	UpdateUser(id int, u User) error
 
 	ExtUser(id int) (*ExternalUser, error)
 	CreateExtUser(eu *ExternalUser) error
@@ -21,9 +22,9 @@ type UserService interface {
 // User je posplosen model uporabnika
 // Pri 'PublicObservations' je v golang default enak false
 type User struct {
-	ID                 int
-	PublicObservations bool   `db:"public_observations"`
-	DisplayName        string `db:"display_name"`
+	ID                 *int
+	PublicObservations *bool   `db:"public_observations"`
+	DisplayName        *string `db:"display_name"`
 }
 
 // ExternalUser deduje od User in predstavlja podatke pridobljene
@@ -54,7 +55,7 @@ type SpeciesService interface {
 	Observations() ([]*Observation, error)
 	CreateObservation(o *Observation) (int, error)
 	DeleteObservation(id int) error
-	UpdateObservation(id int) error
+	UpdateObservation(o map[string]string) error
 
 	ConservationStatus(id int) (*ConservationStatus, error)
 	ConservationStatuses() ([]*ConservationStatus, error)

@@ -121,3 +121,8 @@ func TestDeleteObservation(t *testing.T) {
 		}
 	}
 }
+
+// TestUpdateObservation preveri ce lahko posodobimo dolocen zapis
+func TestUpdateObservation(t *testing.T) {
+
+}

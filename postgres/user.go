@@ -1,12 +1,12 @@
 package postgres
 
 import (
+	"database/sql"
 	"errors"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // Dodatek za PostgreSQL
 	"github.com/rubinda/biolog"
-
 	log "github.com/sirupsen/logrus"
 )
 
@@ -17,35 +17,47 @@ type UserService struct {
 
 // User vrne uporabnika, ki pripada podanemu ID
 func (s *UserService) User(id int) (*biolog.User, error) {
-
-	return nil, errors.New("Not implemented")
+	stmt := `SELECT * FROM biolog_user WHERE id = $1`
+	u := &biolog.User{}
+	if getErr := s.DB.Get(u, stmt, id); getErr != nil {
+		if getErr == sql.ErrNoRows {
+			return nil, errors.New("Uporabnik ne obstaja")
+		}
+		return nil, getErr
+	}
+	return u, nil
 }
 
 // Users vrne vse uporabnike
-func (s *UserService) Users() ([]*biolog.User, error) {
-	return nil, errors.New("Not implemented")
+func (s *UserService) Users() ([]biolog.User, error) {
+	stmt := `SELECT * FROM biolog_user`
+	us := []biolog.User{}
+	if getErr := s.DB.Select(&us, stmt); getErr != nil {
+		return nil, getErr
+	}
+	return us, nil
 }
 
 // CreateUser ustvari novega uporabnika za uporabo aplikacije
-// TODO Convert the for loop into a separate function for multiple SQL statements
-func (s *UserService) CreateUser(u *biolog.User) (int, error) {
-	var userID int
+func (s *UserService) CreateUser(u *biolog.User) (*biolog.User, error) {
+	newUser := biolog.User{}
+
+	// Po koncani kreaciji naj se vrne nov dodeljen zapis o uporabniku
 	insertQuery := `INSERT INTO biolog_user(display_name, public_observations)
 		VALUES(:display_name, :public_observations)
-		RETURNING id`
+		RETURNING *`
 	insStmt, stmtErr := s.DB.PrepareNamed(insertQuery)
 	defer insStmt.Close()
 	if stmtErr != nil {
-		return -1, stmtErr
+		return nil, stmtErr
 	}
 
-	runErr := insStmt.Get(&userID, u)
+	// Pozeni INSERT stavek in pridobi nazaj novega uporabnika
+	runErr := insStmt.Get(&newUser, u)
 	if runErr != nil {
-		return -1, runErr
+		return nil, runErr
 	}
-	log.Info("Create user result ID =", userID)
-	return userID, nil
-
+	return &newUser, nil
 }
 
 // DeleteUser izbrise podanega uporabnika iz podatkovne baze. Javi napako, ce ima uporabnik zapise o opazanjih.
@@ -58,6 +70,17 @@ func (s *UserService) DeleteUser(id int) (int64, error) {
 	}
 	rowsDeleted, _ := result.RowsAffected()
 	return rowsDeleted, nil
+}
+
+// UpdateUser delno posodobi podatke o uporabniku
+func (s *UserService) UpdateUser(id int, u biolog.User) error {
+	query, args := buildInsertUpdateQuery("UPDATE", "biolog_user", u)
+	log.Info("Query = ", query)
+	if _, err := s.DB.Exec(query, args...); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // ExtUser vrne zunanjenga uporabnika s podanim ID

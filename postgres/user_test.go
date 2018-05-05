@@ -7,27 +7,25 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var globalFalse bool = false
+
 // TestCreateUsers preveri kreiranje uporabnikov v bazi
 // Preveri naslednje scenarije:
 // 	- kreira uporabnika, pri katerem je podan 'DisplayName' in 'PublicObservations'
 //	- kreira uporabnika, pri katerem je podano le polje 'DisplayName' s sumniki
 func TestCreateUser(t *testing.T) {
+	n1, n2 := "River Tam", "Srečko Žališnik"
 	cases := []struct {
 		User *biolog.User
 	}{
-		{&biolog.User{DisplayName: "River Tam", PublicObservations: false}},
-		{&biolog.User{DisplayName: "Srečko Žališnik"}},
+		{&biolog.User{DisplayName: &n1, PublicObservations: &globalFalse}},
+		{&biolog.User{DisplayName: &n2}},
 	}
 	for _, c := range cases {
-		newID, createErr := userServiceTest.CreateUser(c.User)
+		newUser, createErr := userServiceTest.CreateUser(c.User)
 		if assert.NoError(t, createErr) {
-			newUser := biolog.User{}
-			getErr := userServiceTest.DB.Get(&newUser,
-				`SELECT * FROM biolog_user WHERE id = $1 LIMIT 1`, newID)
-			if assert.NoError(t, getErr) {
-				assert.Equal(t, c.User.DisplayName, newUser.DisplayName)
-				assert.Equal(t, c.User.PublicObservations, newUser.PublicObservations)
-			}
+			assert.Equal(t, c.User.DisplayName, newUser.DisplayName)
+			assert.Equal(t, c.User.PublicObservations, newUser.PublicObservations)
 		}
 	}
 

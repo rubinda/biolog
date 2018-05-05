@@ -43,6 +43,12 @@ func (s *SpeciesService) DeleteObservation(id int) error {
 	return errors.New("Not implemented")
 }
 
+// UpdateObservation posodobi opazovalni list, ki ima enak ID
+// Nove podatke preberemo iz slovarja, pri cemer so kljuci enaki imenom atributov
+func (s *SpeciesService) UpdateObservation(o map[string]string) error {
+	return errors.New("Not implemented")
+}
+
 // ConservationStatus vrne podatke o dolocenem statusu ogrozenosti
 func (s *SpeciesService) ConservationStatus(id int) (*biolog.ConservationStatus, error) {
 	return nil, errors.New("Not implemented")
@@ -51,9 +57,4 @@ func (s *SpeciesService) ConservationStatus(id int) (*biolog.ConservationStatus,
 // ConservationStatuses vrne vse mozne statuse ogrozenosti za doloceno vrsto
 func (s *SpeciesService) ConservationStatuses() ([]*biolog.ConservationStatus, error) {
 	return nil, errors.New("Not implemented")
-}
-
-// UpdateObservation posodobi opazovalni list, ki ima enak ID
-func (s *SpeciesService) UpdateObservation(id int) error {
-	return errors.New("Not implemented")
 }

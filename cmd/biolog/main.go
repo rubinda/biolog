@@ -29,7 +29,7 @@ func main() {
 	}
 
 	// Inicializira povezavo na podatkovno bazo s pomocjo konfiguracijske datoteke
-	db, error := postgres.Open(viper.GetString("database.user"), viper.GetString("database.password"),
+	db, error := postgres.Open(viper.GetString("database.username"), viper.GetString("database.password"),
 		viper.GetString("database.dbname"), viper.GetString("database.host"), viper.GetString("database.sslmode"),
 		viper.GetInt("database.port"))
 	if error != nil {
@@ -46,7 +46,7 @@ func main() {
 	sAddr := ":" + viper.GetString("server.address")
 	s := http.NewServer(sAddr, h)
 	http.Start(s)
-	log.Info("Server is running @ 127.0.0.1" + viper.GetString("server.address"))
+	log.Info("Server is running @ localhost:" + viper.GetString("server.address"))
 
 	// Registrira poslusalca za signalom 'INTERRUPT' (Ctrl-C)
 	sigs := make(chan os.Signal, 1)
