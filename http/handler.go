@@ -54,6 +54,8 @@ func respondWithError(w http.ResponseWriter, code int, message string) {
 }
 
 // RespondWithJSON vrne JSON kot odgovor na zahtevo. Parametra sta http koda odgovora in telo
+// FIXME:
+// 	- moznost dodajanja lastnih headerjev
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	response, _ := json.Marshal(payload)
 

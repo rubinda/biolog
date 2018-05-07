@@ -16,12 +16,16 @@ type UserService struct {
 }
 
 // User vrne uporabnika, ki pripada podanemu ID
+// TODO:
+// 	- vrne se naj tudi podatek o ExternalUser
+// FIXME:
+// 	- pripadajoci test
 func (s *UserService) User(id int) (*biolog.User, error) {
 	stmt := `SELECT * FROM biolog_user WHERE id = $1`
 	u := &biolog.User{}
 	if getErr := s.DB.Get(u, stmt, id); getErr != nil {
 		if getErr == sql.ErrNoRows {
-			return nil, errors.New("Uporabnik ne obstaja")
+			return nil, errors.New("Uporabnik s tem ID ne obstaja")
 		}
 		return nil, getErr
 	}
@@ -29,6 +33,10 @@ func (s *UserService) User(id int) (*biolog.User, error) {
 }
 
 // Users vrne vse uporabnike
+// TODO:
+// - Vracajo se naj tudi podatki o ExternalUser
+// FIXME:
+// 	- pripadajoci test
 func (s *UserService) Users() ([]biolog.User, error) {
 	stmt := `SELECT * FROM biolog_user`
 	us := []biolog.User{}
@@ -39,29 +47,27 @@ func (s *UserService) Users() ([]biolog.User, error) {
 }
 
 // CreateUser ustvari novega uporabnika za uporabo aplikacije
-func (s *UserService) CreateUser(u *biolog.User) (*biolog.User, error) {
+// TODO:
+// 	- ustvari se naj tudi zapis o ExternalUser
+// FIXME:
+// 	- pripadajoci test
+func (s *UserService) CreateUser(u biolog.User) (*biolog.User, error) {
 	newUser := biolog.User{}
 
 	// Po koncani kreaciji naj se vrne nov dodeljen zapis o uporabniku
-	insertQuery := `INSERT INTO biolog_user(display_name, public_observations)
-		VALUES(:display_name, :public_observations)
-		RETURNING *`
-	insStmt, stmtErr := s.DB.PrepareNamed(insertQuery)
-	defer insStmt.Close()
-	if stmtErr != nil {
-		return nil, stmtErr
+	q, args := buildInsertUpdateQuery(buildInsert, "biolog_user", u)
+	if err := s.DB.Get(&newUser, q, args...); err != nil {
+		return nil, err
 	}
 
-	// Pozeni INSERT stavek in pridobi nazaj novega uporabnika
-	runErr := insStmt.Get(&newUser, u)
-	if runErr != nil {
-		return nil, runErr
-	}
 	return &newUser, nil
 }
 
 // DeleteUser izbrise podanega uporabnika iz podatkovne baze. Javi napako, ce ima uporabnik zapise o opazanjih.
-// (?) Dodaj DeleteUserCascade, ki zbrise se vse povezane zapise
+// TODO:
+// 	- dodaj Cascade, ki zbrise se vse povezane zapise
+// FIXME:
+// 	- pripadajoci test
 func (s *UserService) DeleteUser(id int) (int64, error) {
 	deleteUser := `DELETE FROM biolog_user WHERE ID = $1`
 	result, createErr := s.DB.Exec(deleteUser, id)
@@ -73,8 +79,14 @@ func (s *UserService) DeleteUser(id int) (int64, error) {
 }
 
 // UpdateUser delno posodobi podatke o uporabniku
+//
+// (?) Ali je lahko sporno da posodabljas podatke, ki so pridobljeni od zunanjega avtentikatorja?
+// TODO:
+// 	- posodobitve naj bojo mozne tudi na podatke zunanjega avtentikatorja
+// FIXME:
+// 	- pripadajoci test
 func (s *UserService) UpdateUser(id int, u biolog.User) error {
-	query, args := buildInsertUpdateQuery("UPDATE", "biolog_user", u)
+	query, args := buildInsertUpdateQuery(buildUpdate, "biolog_user", u)
 	log.Info("Query = ", query)
 	if _, err := s.DB.Exec(query, args...); err != nil {
 		return err
@@ -83,52 +95,41 @@ func (s *UserService) UpdateUser(id int, u biolog.User) error {
 	return nil
 }
 
-// ExtUser vrne zunanjenga uporabnika s podanim ID
-func (s *UserService) ExtUser(id int) (*biolog.ExternalUser, error) {
-	return nil, errors.New("Not implemented")
-}
+// UserByExtID vrne zunanjega uporabnika glede na ID zunanjega avtentikatorja
+func (s *UserService) UserByExtID(id string) (*biolog.ExternalUser, error) {
+	stmt := `SELECT * FROM external_user WHERE external_id = $1`
+	eu := &biolog.ExternalUser{}
 
-// CreateExtUser ustvari nov zapis o zunanjem uporabniku
-func (s *UserService) CreateExtUser(eu *biolog.ExternalUser) error {
-	return errors.New("Not implemented")
-}
-
-// DeleteExtUser zbrise zunanjega uporabnika. Javi napako, ce ima uporabnik zapise o opazanjih.
-// (?) Dodaj DeleteExtUserCascade, ki zbrise se vse povezane zapise
-func (s *UserService) DeleteExtUser(id int) error {
-	return errors.New("Not implemented")
+	// Pozene poizvedbo in preveri za napake
+	if err := s.DB.Get(eu, stmt, id); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("Uporabnika s tem ID ni mogoče najti")
+		}
+		return nil, err
+	}
+	return eu, nil
 }
 
 // AuthProvider vrne podrobnosti o dolocenem ponudniku avtentikacije
 func (s *UserService) AuthProvider(id int) (*biolog.AuthProvider, error) {
-	return nil, errors.New("Not implemented")
+	stmt := `SELECT * FROM external_auth_provider WHERE id = $1`
+	var authPro biolog.AuthProvider
+
+	if err := s.DB.Get(&authPro, stmt, id); err != nil {
+		return nil, err
+	}
+
+	return &authPro, nil
 }
 
-// GetUserHandler je funkcija, ki jo klice router
-// Klice funkcijo za pridobivanje podrobnosti o podanem uporabniku (preko ID)
-/*func (a *App) GetUserHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r) // Poberi spremenljivke iz naslova
+// AuthProviders vrne vse podatke o vseh zunanjih avtentikatorjih
+func (s *UserService) AuthProviders() ([]biolog.AuthProvider, error) {
+	stmt := `SELECT * FROM external_auth_provider`
+	var authPros []biolog.AuthProvider
 
-	tid, err := strconv.Atoi(vars["id"]) // Pridobi ID iz url
-	if err != nil {
-		// Prislo je do napake pri pridobivanju ID-ja, odgovori z BAD_REQUEST
-		respondWithError(w, http.StatusBadRequest, "Neveljaven ID uporabnika")
-		return
+	if err := s.DB.Select(&authPros, stmt); err != nil {
+		return nil, err
 	}
 
-	user := User{ID: tid}
-
-	if err := user.Get(a.DB); err != nil {
-		// Obvesti uporabnika ustrezno glede na napako
-		switch err {
-		case sql.ErrNoRows:
-			respondWithError(w, http.StatusNotFound, "Uporabnik ni bil najden")
-		default:
-			respondWithError(w, http.StatusInternalServerError, err.Error())
-		}
-
-		return
-	}
-
-	respondWithJSON(w, http.StatusOK, user)
-}*/
+	return authPros, nil
+}

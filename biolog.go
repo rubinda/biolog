@@ -8,15 +8,13 @@ import "time"
 type UserService interface {
 	User(id int) (*User, error)
 	Users() ([]User, error)
-	CreateUser(u *User) (*User, error)
+	CreateUser(u User) (*User, error)
 	DeleteUser(id int) (int64, error)
 	UpdateUser(id int, u User) error
-
-	ExtUser(id int) (*ExternalUser, error)
-	CreateExtUser(eu *ExternalUser) error
-	DeleteExtUser(id int) error
+	UserByExtID(id string) (*ExternalUser, error)
 
 	AuthProvider(id int) (*AuthProvider, error)
+	AuthProviders() ([]AuthProvider, error)
 }
 
 // User je posplosen model uporabnika
@@ -30,14 +28,14 @@ type User struct {
 // ExternalUser deduje od User in predstavlja podatke pridobljene
 // iz strani zunanjega avtentikatorja
 type ExternalUser struct {
-	ID                   int
-	ExternalID           int    `db:"external_id"`
-	FirstName            string `db:"first_name"`
-	LastName             string `db:"last_name"`
-	Email                string
-	ProfileImageURL      string `db:"profile_image_url"`
-	ExternalAuthProvider int    `db:"external_auth_provider"`
-	User                 int    `db:"biolog_user"`
+	ID                   *int
+	ExternalID           *string `db:"external_id"`
+	GivenName            *string `db:"given_name"`
+	FamilyName           *string `db:"family_name"`
+	Email                *string
+	Picture              *string
+	ExternalAuthProvider *int `db:"external_auth_provider"`
+	User                 *int `db:"biolog_user"`
 }
 
 // AuthProvider je zunanji avtentikator za prijavo v aplikacijo

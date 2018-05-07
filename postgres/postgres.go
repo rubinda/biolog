@@ -11,6 +11,10 @@ import (
 	_ "github.com/lib/pq" // Dodatek za PostgreSQL
 )
 
+// Konstanti za funkcijo, ki gradi SQL query
+const buildUpdate string = "UPDATE"
+const buildInsert string = "INSERT"
+
 // Open inicializira povezavo na podatkovno bazo PostgreSQL
 func Open(user, password, dbname, host, sslmode string, port int) (*sqlx.DB, error) {
 	connString := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d sslmode=%s",
@@ -46,7 +50,7 @@ func buildInsertUpdateQuery(queryType string, table string, o interface{}) (stri
 	nnFields := getNonNilFields(o)
 
 	switch queryType {
-	case "INSERT":
+	case buildInsert:
 		// Build the INSERT query based on non nil fields
 		// queryVals are the bindvars for the values
 		var queryVals strings.Builder
@@ -69,7 +73,7 @@ func buildInsertUpdateQuery(queryType string, table string, o interface{}) (stri
 		queryVals.WriteString(") RETURNING *")
 		fmt.Fprintf(&query, ") %s", queryVals.String())
 
-	case "UPDATE":
+	case buildUpdate:
 		// Build the UPDATE query based on non nil fields
 		var id int
 		fmt.Fprintf(&query, "UPDATE %s SET ", table)

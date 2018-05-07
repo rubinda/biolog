@@ -27,19 +27,17 @@ func NewUserHandler() *UserHandler {
 		//UserService: us,
 		Mux: chi.NewRouter(),
 	}
-
 	// Prefix do tukaj je ze /api/v1/users, poti pisemo od tega naprej
+	//
+	// Metode za uporabnike
 	u.Get("/", u.GetUsers)
 	u.Post("/", u.CreateUser)
-	u.Get("/{id:[0-9]+}", u.GetUserByID)
+	u.Get("/{id:\\d{8}}", u.GetUserByID)
+	u.Get("/{extID}", u.GetUserByExtID)
 	u.Patch("/{id:[0-9]+}", u.UpdateUser)
 	u.Delete("/{id:[0-9]+}", u.DeleteUser)
-	u.Get("/{id:[0-9]+}/external", u.GetUserExternalDetails)
 
-	u.Get("/external/{id:[0-9]+}", u.GetExternalUserByID)
-	u.Get("/external/{extID}", u.GetExternalUserByExtID)
-	u.Patch("/external/{id:[0-9]+}", u.UpdateExternalUser)
-
+	// Metode za ponudnike zunanje avtentikacije
 	u.Get("/auth_providers", u.GetAuthProviders)
 	u.Get("/auth_providers/{id:[0-9]+}", u.GetAuthProvider)
 
@@ -69,14 +67,16 @@ func (u *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 }
 
 // CreateUser ustvari novega uporabnika
+// TODO:
+//	- locena metoda za dekodiranje telesa (?)
 func (u *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var usr biolog.User
 
 	// Pridobi podatke o novem uporabniku iz telesa zahtevka
 	decErr := json.NewDecoder(r.Body).Decode(&usr)
 	if decErr != nil {
-		switch {
-		case decErr == io.EOF:
+		switch decErr {
+		case io.EOF:
 			respondWithError(w, 400, "Telo zahtevka pri kreiranju uporabnika ne more biti prazno")
 		default:
 			respondWithError(w, 400, "Napaka pri pretvarjanju JSONa iz telesa zahtevka")
@@ -84,7 +84,7 @@ func (u *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Kreiraj novega uporabnika
-	newUsr, err := u.UserService.CreateUser(&usr)
+	newUsr, err := u.UserService.CreateUser(usr)
 
 	// Napaka pri kreiranju
 	if err != nil {
@@ -121,6 +121,7 @@ func (u *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 // FIXME:
 // 	- branje ID iz telesa in ID iz URL
 // TODO:
+// 	- posodabljanje naj deluje tudi na ExternalUser
 // 	- javljanje napak (neveljavni znaki za polja?)
 //  - uporabnik lahko posodablja le lasten racun
 func (u *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
@@ -153,6 +154,7 @@ func (u *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 // DeleteUser zbrise dolocenega uporabnika
 // (!) Zbrisejo se tudi vsi povezani zapisi (ExternalUser, Observations ...).
 // TODO:
+//	- zbrise se naj se ExternalUser
 // 	- preveri da uporabnik lahko zbrise le svoj racun
 //  - javljanje napak (unauthorized, non-existent)
 func (u *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
@@ -174,36 +176,20 @@ func (u *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// GetUserExternalDetails vrne podrobnosti o zunanjem uporabniku, katerega referenciramo
-// preko uporabniskega racuna User
-func (u *UserHandler) GetUserExternalDetails(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Not implemented")
-	// TODO implement the method
-}
-
-// GetExternalUserByID pridobi podatke o zunanjem uporabniku (uporabnik od zunanjega avtentikatorja),
-// preko nasega ID zanj
-func (u *UserHandler) GetExternalUserByID(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Not implemented")
-	// TODO: implement the method
-}
-
-// GetExternalUserByExtID pridobi podatke o zunanjem uporabniku (uporabnik od zunanjega avtentikatorja),
+// GetUserByExtID pridobi podatke o zunanjem uporabniku (uporabnik od zunanjega avtentikatorja),
 // preko ID, ki ga ima uporabnik pri zunanjem avtentikatorju
-func (u *UserHandler) GetExternalUserByExtID(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Not implemented 2")
-	// TODO implement the method
-}
+func (u *UserHandler) GetUserByExtID(w http.ResponseWriter, r *http.Request) {
+	// ID je vec kot 8 mestno stevilo (Google ima 22 stevk)
+	// Pustimo v string
+	extID := chi.URLParam(r, "id")
 
-// UpdateExternalUser posodobi podatke o zunanjem uporabniku v nasi podatkovni bazi
-// preko nasega ID zanj
-func (u *UserHandler) UpdateExternalUser(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Not implemented")
-	// TODO implement the method
+	extUsr, err := u.UserService.UserByExtID(extID)
+	if err != nil {
+		respondWithError(w, 400, err.Error())
+		return
+	}
+
+	respondWithJSON(w, 200, extUsr)
 }
 
 // GetAuthProviders pridobi in izpise vse shranjene zunanje avtentikatorje

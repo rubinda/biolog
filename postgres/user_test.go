@@ -16,10 +16,10 @@ var globalFalse bool = false
 func TestCreateUser(t *testing.T) {
 	n1, n2 := "River Tam", "Srečko Žališnik"
 	cases := []struct {
-		User *biolog.User
+		User biolog.User
 	}{
-		{&biolog.User{DisplayName: &n1, PublicObservations: &globalFalse}},
-		{&biolog.User{DisplayName: &n2}},
+		{biolog.User{DisplayName: &n1, PublicObservations: &globalFalse}},
+		{biolog.User{DisplayName: &n2}},
 	}
 	for _, c := range cases {
 		newUser, createErr := userServiceTest.CreateUser(c.User)
@@ -99,94 +99,6 @@ func TestDeleteUser(t *testing.T) {
 		if assert.NoError(t, selectErr) {
 			assert.Equal(t, c.ShouldStay, userExists)
 		}
-	}
-}
-
-// TestExtUser preveri pridobivanje podatkov o zunanjem uporabniku shranjeni v nasi bazi
-// Preveri naslednje scenarije:
-// 	- uspesno pridobivanje podatkov
-func TestExtUser(t *testing.T) {
-	cases := []struct {
-		ID            int
-		ExpectedError error
-	}{
-		{1, nil},
-	}
-
-	for _, c := range cases {
-		extUser, getErr := userServiceTest.ExtUser(c.ID)
-		if assert.NoError(t, getErr) {
-			expectedUser := biolog.ExternalUser{}
-			selectErr := userServiceTest.DB.Get(&expectedUser,
-				`SELECT * FROM external_user WHERE id = $1 LIMIT 1`, c.ID)
-			if assert.NoError(t, selectErr) {
-				assert.Equal(t, expectedUser, extUser)
-			}
-		}
-	}
-}
-
-// TestCreateExtUser preveri shranjevanje podatkov zunanjega avtentikatorja o uporabniku
-// Preveri naslednje scenarije:
-// 	- kreiranje vseh zapisov
-// 	- kreiranje le z zapisi, ki so NON NULLABLE
-func TestCreateExtUser(t *testing.T) {
-	cases := []struct {
-		ExtUser *biolog.ExternalUser
-	}{
-		{&biolog.ExternalUser{ExternalID: 8587201256, FirstName: "Jayne",
-			LastName: "Cobb", Email: "jaynecobb22@gmail.com",
-			ProfileImageURL: "http://static.flickr.com/13/19792036_cd4e5997a4.jpg?v=0", ExternalAuthProvider: 1,
-			User: 5}},
-		{&biolog.ExternalUser{ExternalID: 6572812991, FirstName: "Malcolm", LastName: "Reynolds",
-			Email: "malcolm.serenity@gmail.com", ExternalAuthProvider: 1, User: 1}},
-	}
-
-	for _, c := range cases {
-		createErr := userServiceTest.CreateExtUser(c.ExtUser)
-		if assert.NoError(t, createErr) {
-			newExtUser := biolog.ExternalUser{}
-			selectErr := userServiceTest.DB.Get(&newExtUser,
-				`SELECT * FROM external_user WHERE id = $1 LIMIT 1`, c.ExtUser.ID)
-
-			if assert.NoError(t, selectErr) {
-				assert.Equal(t, c.ExtUser, newExtUser)
-			}
-		}
-	}
-}
-
-// TestDeleteExtUser preveri brisanje zunanjega uporanbika. Ce ima uporabnik zapise o opazanjih, metoda
-// javi napako.
-// Preveri naslednje scenarije:
-//	- uspesno brisanje uporabnika brez zapisov
-// 	- neuspesno brisanje racuna, ki ima zapise o opazanjih
-func TestDeleteExtUser(t *testing.T) {
-	cases := []struct {
-		ID         int
-		ShouldStay bool
-		Comment    string
-	}{
-		{
-			ID:         3,
-			ShouldStay: false,
-			Comment:    "Can be deleted",
-		}, {
-			ID:         2,
-			ShouldStay: true,
-			Comment:    "Can't delete the user, he has observations",
-		},
-	}
-
-	for _, c := range cases {
-		userServiceTest.DeleteExtUser(c.ID)
-		var userExists bool
-		selectErr := userServiceTest.DB.QueryRow(`SELECT EXISTS
-			(SELECT 1 FROM external_user WHERE id = $1 LIMIT 1)`, c.ID).Scan(&userExists)
-		if assert.NoError(t, selectErr) {
-			assert.Equal(t, c.ShouldStay, userExists)
-		}
-
 	}
 }
 
