@@ -34,8 +34,8 @@ func NewUserHandler() *UserHandler {
 	u.Post("/", u.CreateUser)
 	u.Get("/{id:\\d{8}}", u.GetUserByID)
 	u.Get("/{extID}", u.GetUserByExtID)
-	u.Patch("/{id:[0-9]+}", u.UpdateUser)
-	u.Delete("/{id:[0-9]+}", u.DeleteUser)
+	u.Patch("/{id:\\d{8}}", u.UpdateUser)
+	u.Delete("/{id:\\d{8}}", u.DeleteUser)
 
 	// Metode za ponudnike zunanje avtentikacije
 	u.Get("/auth_providers", u.GetAuthProviders)
@@ -68,13 +68,19 @@ func (u *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 
 // CreateUser ustvari novega uporabnika
 // TODO:
+// 	- javljanje napak za JSON telo
 //	- locena metoda za dekodiranje telesa (?)
+// FIXME:
+// 	- ustvari se lahko User brez ExternalUser
 func (u *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var usr biolog.User
 
-	// Pridobi podatke o novem uporabniku iz telesa zahtevka
+	// Podatki iz telesa
 	decErr := json.NewDecoder(r.Body).Decode(&usr)
+
+	// Pri pretvarjanju je prislo do napake
 	if decErr != nil {
+		log.Error("Error1, ", decErr)
 		switch decErr {
 		case io.EOF:
 			respondWithError(w, 400, "Telo zahtevka pri kreiranju uporabnika ne more biti prazno")
@@ -83,13 +89,14 @@ func (u *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
 	// Kreiraj novega uporabnika
 	newUsr, err := u.UserService.CreateUser(usr)
 
 	// Napaka pri kreiranju
 	if err != nil {
 		respondWithError(w, 400, "Napaka pri ustvarjanju novega uporabnika")
-		log.Error(err)
+		log.Error("error1, ", err)
 		return
 	}
 
@@ -121,7 +128,6 @@ func (u *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 // FIXME:
 // 	- branje ID iz telesa in ID iz URL
 // TODO:
-// 	- posodabljanje naj deluje tudi na ExternalUser
 // 	- javljanje napak (neveljavni znaki za polja?)
 //  - uporabnik lahko posodablja le lasten racun
 func (u *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
@@ -183,13 +189,13 @@ func (u *UserHandler) GetUserByExtID(w http.ResponseWriter, r *http.Request) {
 	// Pustimo v string
 	extID := chi.URLParam(r, "id")
 
-	extUsr, err := u.UserService.UserByExtID(extID)
+	usr, err := u.UserService.UserByExtID(extID)
 	if err != nil {
 		respondWithError(w, 400, err.Error())
 		return
 	}
 
-	respondWithJSON(w, 200, extUsr)
+	respondWithJSON(w, 200, usr)
 }
 
 // GetAuthProviders pridobi in izpise vse shranjene zunanje avtentikatorje

@@ -19,23 +19,18 @@ INSERT INTO external_auth_provider VALUES(DEFAULT, 'Google');
 INSERT INTO species VALUES (DEFAULT, 'Passer domesticus', 'Animalia', 'Passeridae', 'Aves',
     'Chordata', 'Passeriformes', 'Passer', 'Passer domesticus (Linnaeus, 1758)', 'Passer domesticus', 8, 5231190);
 
--- [user] 
-INSERT INTO biolog_user VALUES(DEFAULT, 'Malcolm Reynolds', TRUE);
-INSERT INTO biolog_user VALUES(DEFAULT, 'Hoban Washburne', FALSE);
-INSERT INTO biolog_user VALUES(DEFAULT, 'Zoe Washburne', TRUE);
-INSERT INTO biolog_user VALUES(DEFAULT, 'Kaylee Frye', TRUE);
-INSERT INTO biolog_user VALUES(DEFAULT, 'Jayne Cobb', FALSE);
-INSERT INTO biolog_user VALUES(DEFAULT, 'Derrial Book', FALSE);
-
--- [external_user]
-INSERT INTO external_user VALUES(DEFAULT, 4567891920, 'Zoe', 'Washburne', 
-    'zoe.washburne@gmail.com', 'https://vignette.wikia.nocookie.net/firefly/images/1/10/Zoe.jpg', 1, 3);
-INSERT INTO external_user VALUES(DEFAULT, 9302175329, 'Kaywinnet', 'Lee Frye', 
-    'kaylee4@gmail.com', 'https://vignette.wikia.nocookie.net/firefly/images/4/44/Kaylee_closeup.jpg', 1, 4);
-INSERT INTO external_user VALUES(DEFAULT, 8573482930, 'Derrial', 'Book', 
-    'shepherd.book@gmail.com', 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Ron_Glass_Serenity_premiere_1.jpg/220px-Ron_Glass_Serenity_premiere_1.jpg',
-    1, 6);
+-- [biolog_user] 
+INSERT INTO biolog_user (id, external_id, display_name, given_name, family_name, email, public_observations, picture, external_auth_provider)
+    VALUES(DEFAULT, '7464723854823589876345', 'Marjetka Kostanjsek', 'Marjetka', 'Kostanjesek', 'marjetka@fakemail.com', TRUE, 'https://doesnt.exist.com/path/to/picture.png', 1);
+INSERT INTO biolog_user (id, external_id, display_name, given_name, family_name, email, public_observations, picture, external_auth_provider)
+    VALUES(DEFAULT, '4896207315489620731522', 'Silvika Brezovec', 'Silvika', 'Brezovec', 'silvika@fakemail.com', TRUE, 'https://doesnt.exist.com/path/to/picture.png', 1);
+INSERT INTO biolog_user (id, external_id, display_name, given_name, family_name, email, public_observations, picture, external_auth_provider)
+    VALUES(DEFAULT, '5916087423591608742356', 'Isabela Trtovnik', 'Isabela', 'Trtovnik', 'isabela@fakemail.com', TRUE, 'https://doesnt.exist.com/path/to/picture.png', 1);
+INSERT INTO biolog_user (id, external_id, display_name, given_name, family_name, email, public_observations, picture, external_auth_provider)
+    VALUES(DEFAULT, '8427613950842761395075', 'Jagoda Mlinaric', 'Jagoda', 'Mlinaric', 'jagoda@fakemail.com', TRUE, 'https://doesnt.exist.com/path/to/picture.png', 1);
+INSERT INTO biolog_user (id, external_id, display_name, given_name, family_name, email, public_observations, picture, external_auth_provider)
+    VALUES(DEFAULT, '8146079532814607953221', 'Klementina Koblaric', 'Klementina', 'Koblaric', 'klementina@fakemail.com', TRUE, 'https://doesnt.exist.com/path/to/picture.png', 1);
 
 -- [observation]
 INSERT INTO observation(id, sighting_time, sighting_location, quantity, public_visibility, biolog_user, species)
-    VALUES (DEFAULT, now(), ST_GeomFromText('POINT(-71.060316 48.432044)'), 6, TRUE, 3, 1);
+    VALUES (DEFAULT, now(), ST_GeomFromText('POINT(-71.060316 48.432044)'), 6, TRUE, 10000003, 1);

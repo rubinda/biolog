@@ -7,7 +7,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // Dodatek za PostgreSQL
 	"github.com/rubinda/biolog"
-	log "github.com/sirupsen/logrus"
 )
 
 // UserService predstavlja PostgreSQL implementacijo od biolog.UserService
@@ -16,8 +15,6 @@ type UserService struct {
 }
 
 // User vrne uporabnika, ki pripada podanemu ID
-// TODO:
-// 	- vrne se naj tudi podatek o ExternalUser
 // FIXME:
 // 	- pripadajoci test
 func (s *UserService) User(id int) (*biolog.User, error) {
@@ -33,8 +30,6 @@ func (s *UserService) User(id int) (*biolog.User, error) {
 }
 
 // Users vrne vse uporabnike
-// TODO:
-// - Vracajo se naj tudi podatki o ExternalUser
 // FIXME:
 // 	- pripadajoci test
 func (s *UserService) Users() ([]biolog.User, error) {
@@ -47,8 +42,6 @@ func (s *UserService) Users() ([]biolog.User, error) {
 }
 
 // CreateUser ustvari novega uporabnika za uporabo aplikacije
-// TODO:
-// 	- ustvari se naj tudi zapis o ExternalUser
 // FIXME:
 // 	- pripadajoci test
 func (s *UserService) CreateUser(u biolog.User) (*biolog.User, error) {
@@ -81,13 +74,12 @@ func (s *UserService) DeleteUser(id int) (int64, error) {
 // UpdateUser delno posodobi podatke o uporabniku
 //
 // (?) Ali je lahko sporno da posodabljas podatke, ki so pridobljeni od zunanjega avtentikatorja?
-// TODO:
-// 	- posodobitve naj bojo mozne tudi na podatke zunanjega avtentikatorja
 // FIXME:
 // 	- pripadajoci test
 func (s *UserService) UpdateUser(id int, u biolog.User) error {
 	query, args := buildInsertUpdateQuery(buildUpdate, "biolog_user", u)
-	log.Info("Query = ", query)
+	// Dodaj ID v seznam argumentov
+	args = append(args, id)
 	if _, err := s.DB.Exec(query, args...); err != nil {
 		return err
 	}
@@ -96,9 +88,9 @@ func (s *UserService) UpdateUser(id int, u biolog.User) error {
 }
 
 // UserByExtID vrne zunanjega uporabnika glede na ID zunanjega avtentikatorja
-func (s *UserService) UserByExtID(id string) (*biolog.ExternalUser, error) {
-	stmt := `SELECT * FROM external_user WHERE external_id = $1`
-	eu := &biolog.ExternalUser{}
+func (s *UserService) UserByExtID(id string) (*biolog.User, error) {
+	stmt := `SELECT * FROM biolog_user WHERE external_id = $1`
+	eu := &biolog.User{}
 
 	// Pozene poizvedbo in preveri za napake
 	if err := s.DB.Get(eu, stmt, id); err != nil {

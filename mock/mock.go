@@ -15,10 +15,6 @@ type UserService struct {
 	CreateUserFn func(u *biolog.User) error
 	DeleteUserFn func(id int) error
 
-	ExtUserFn       func(id int) (*biolog.ExternalUser, error)
-	CreateExtUserFn func(eu *biolog.ExternalUser) error
-	DeleteExtUserFn func(id int) error
-
 	AuthProviderFn func(id int) (*biolog.AuthProvider, error)
 }
 
@@ -40,21 +36,6 @@ func (s *UserService) CreateUser(u *biolog.User) error {
 // DeleteUser mock za brisanje uporabnika
 func (s *UserService) DeleteUser(id int) error {
 	return s.DeleteUserFn(id)
-}
-
-// ExtUser mock za vracanje zunanjega uporabnika preko ID
-func (s *UserService) ExtUser(id int) (*biolog.ExternalUser, error) {
-	return s.ExtUser(id)
-}
-
-// CreateExtUser mock za ustvarjanje zunanjega uporabnika
-func (s *UserService) CreateExtUser(eu *biolog.ExternalUser) error {
-	return s.CreateExtUserFn(eu)
-}
-
-// DeleteExtUser mock za brisanje zunanjega uporabnika
-func (s *UserService) DeleteExtUser(id int) error {
-	return s.DeleteExtUserFn(id)
 }
 
 // AuthProvider mock za pridobivanje podrobnosti o ponudniku avtentikacije

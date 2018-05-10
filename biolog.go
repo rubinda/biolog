@@ -11,31 +11,25 @@ type UserService interface {
 	CreateUser(u User) (*User, error)
 	DeleteUser(id int) (int64, error)
 	UpdateUser(id int, u User) error
-	UserByExtID(id string) (*ExternalUser, error)
+	UserByExtID(id string) (*User, error)
 
 	AuthProvider(id int) (*AuthProvider, error)
 	AuthProviders() ([]AuthProvider, error)
 }
 
-// User je posplosen model uporabnika
-// Pri 'PublicObservations' je v golang default enak false
+// User shrani podatke o uporabniku (tako nase kot od zunanjega avtentikatorja)
+// Po defaultu Golang dodeli privzeto vrednost spremenljivkam, zato
+// imamo pointerje, da je lahko tudi nil
 type User struct {
-	ID                 *int
-	PublicObservations *bool   `db:"public_observations"`
-	DisplayName        *string `db:"display_name"`
-}
-
-// ExternalUser deduje od User in predstavlja podatke pridobljene
-// iz strani zunanjega avtentikatorja
-type ExternalUser struct {
 	ID                   *int
+	PublicObservations   *bool   `db:"public_observations"`
+	DisplayName          *string `db:"display_name"`
 	ExternalID           *string `db:"external_id"`
 	GivenName            *string `db:"given_name"`
 	FamilyName           *string `db:"family_name"`
 	Email                *string
 	Picture              *string
 	ExternalAuthProvider *int `db:"external_auth_provider"`
-	User                 *int `db:"biolog_user"`
 }
 
 // AuthProvider je zunanji avtentikator za prijavo v aplikacijo

@@ -8,38 +8,38 @@ import (
 )
 
 var globalFalse bool = false
+var globalOne int = 1
 
 // TestCreateUsers preveri kreiranje uporabnikov v bazi
-// Preveri naslednje scenarije:
-// 	- kreira uporabnika, pri katerem je podan 'DisplayName' in 'PublicObservations'
-//	- kreira uporabnika, pri katerem je podano le polje 'DisplayName' s sumniki
 func TestCreateUser(t *testing.T) {
-	n1, n2 := "River Tam", "Srečko Žališnik"
+	// Za potrebe pointer vrednosti
+	gn, fn, dn := "River", "Tam", "ms. River Tam"
+	fakeMail := "river.tam@fakemail.com"
+	extID := "7658492264781235203932"
+
 	cases := []struct {
 		User biolog.User
 	}{
-		{biolog.User{DisplayName: &n1, PublicObservations: &globalFalse}},
-		{biolog.User{DisplayName: &n2}},
+		{biolog.User{DisplayName: &dn, PublicObservations: &globalFalse, FamilyName: &fn, GivenName: &gn,
+			ExternalAuthProvider: &globalOne, Email: &fakeMail, ExternalID: &extID}},
 	}
 	for _, c := range cases {
 		newUser, createErr := userServiceTest.CreateUser(c.User)
+		// Pri preverjanju enakosti preveri le eno izmed polj (nekatera niso izpolnjena in pointerji)
 		if assert.NoError(t, createErr) {
 			assert.Equal(t, c.User.DisplayName, newUser.DisplayName)
-			assert.Equal(t, c.User.PublicObservations, newUser.PublicObservations)
 		}
 	}
 
 }
 
 // TestUser preveri pridobivanje uporabnikov iz baze
-// Preveri naslednje scenarije:
-//	- uspesno pridobiti uporabnika preko ID
 func TestUser(t *testing.T) {
 	cases := []struct {
 		ID int
 	}{
 		{
-			ID: 1,
+			ID: 10000000,
 		},
 	}
 	for _, c := range cases {
@@ -49,7 +49,7 @@ func TestUser(t *testing.T) {
 			selectErr := userServiceTest.DB.Get(&actualUser,
 				`SELECT * FROM biolog_user WHERE id = $1 LIMIT 1`, c.ID)
 			if assert.NoError(t, selectErr) {
-				assert.Equal(t, actualUser, getUser)
+				assert.Equal(t, actualUser, *getUser)
 			}
 		}
 	}
@@ -61,7 +61,7 @@ func TestUser(t *testing.T) {
 func TestUsers(t *testing.T) {
 	userList, err := userServiceTest.Users()
 	if assert.NoError(t, err) {
-		users := []*biolog.User{}
+		users := []biolog.User{}
 		selectErr := userServiceTest.DB.Select(&users, `SELECT * FROM biolog_user`)
 		if assert.NoError(t, selectErr) {
 			assert.EqualValues(t, users, userList)
@@ -81,12 +81,12 @@ func TestDeleteUser(t *testing.T) {
 		Comment    string
 	}{
 		{
-			ID:         2,
+			ID:         10000002,
 			ShouldStay: false,
 			Comment:    "Can be deleted",
 		},
 		{
-			ID:         3,
+			ID:         10000003,
 			ShouldStay: true,
 			Comment:    "Can't delete, user has observation records",
 		},
@@ -111,7 +111,7 @@ func TestAuthProvider(t *testing.T) {
 		`SELECT * FROM external_auth_provider WHERE id = $1 LIMIT 1`, id)
 	if assert.NoError(t, getErr) {
 		if assert.NoError(t, selectErr) {
-			assert.Equal(t, actualAuthProv, authProv)
+			assert.Equal(t, actualAuthProv, *authProv)
 		}
 	}
 }

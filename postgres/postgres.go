@@ -75,13 +75,11 @@ func buildInsertUpdateQuery(queryType string, table string, o interface{}) (stri
 
 	case buildUpdate:
 		// Build the UPDATE query based on non nil fields
-		var id int
 		fmt.Fprintf(&query, "UPDATE %s SET ", table)
 
 		for key, value := range nnFields {
-			// Store the ID, and dont include it in the update
+			// Don't include the ID in the update
 			if key == "id" {
-				id = int(value.(int32))
 				continue
 			}
 
@@ -95,7 +93,8 @@ func buildInsertUpdateQuery(queryType string, table string, o interface{}) (stri
 			args = append(args, value)
 			i++
 		}
-		fmt.Fprintf(&query, " WHERE id = %d", id)
+		fmt.Fprintf(&query, " WHERE id = $%d", i)
+		i++
 
 	}
 	return query.String(), args
