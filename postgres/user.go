@@ -15,8 +15,6 @@ type UserService struct {
 }
 
 // User vrne uporabnika, ki pripada podanemu ID
-// FIXME:
-// 	- pripadajoci test
 func (s *UserService) User(id int) (*biolog.User, error) {
 	stmt := `SELECT * FROM biolog_user WHERE id = $1`
 	u := &biolog.User{}
@@ -30,8 +28,6 @@ func (s *UserService) User(id int) (*biolog.User, error) {
 }
 
 // Users vrne vse uporabnike
-// FIXME:
-// 	- pripadajoci test
 func (s *UserService) Users() ([]biolog.User, error) {
 	stmt := `SELECT * FROM biolog_user`
 	us := []biolog.User{}
@@ -42,8 +38,6 @@ func (s *UserService) Users() ([]biolog.User, error) {
 }
 
 // CreateUser ustvari novega uporabnika za uporabo aplikacije
-// FIXME:
-// 	- pripadajoci test
 func (s *UserService) CreateUser(u biolog.User) (*biolog.User, error) {
 	newUser := biolog.User{}
 
@@ -59,8 +53,6 @@ func (s *UserService) CreateUser(u biolog.User) (*biolog.User, error) {
 // DeleteUser izbrise podanega uporabnika iz podatkovne baze. Javi napako, ce ima uporabnik zapise o opazanjih.
 // TODO:
 // 	- dodaj Cascade, ki zbrise se vse povezane zapise
-// FIXME:
-// 	- pripadajoci test
 func (s *UserService) DeleteUser(id int) (int64, error) {
 	deleteUser := `DELETE FROM biolog_user WHERE ID = $1`
 	result, createErr := s.DB.Exec(deleteUser, id)

@@ -2,7 +2,9 @@
 // holding user data or a UserService interface for fetching or saving user data.
 package biolog
 
-import "time"
+import (
+	"time"
+)
 
 // UserService nudi interface vseh metod za delo z uporabniki
 type UserService interface {
@@ -41,16 +43,19 @@ type AuthProvider struct {
 // SpeciesService nudi interface za delo z vrstami in zapisi o njih
 type SpeciesService interface {
 	Species(id int) (*Species, error)
-	CreateSpecies(sp *Species) (int64, error)
+	AllSpecies() ([]Species, error)
+	CreateSpecies(sp *Species) (*Species, error)
+	UpdateSpecies(gbifKey int, sp Species) error
+	DeleteSpecies(gbifKey int) error
 
 	Observation(id int) (*Observation, error)
-	Observations() ([]*Observation, error)
-	CreateObservation(o *Observation) (int, error)
+	Observations() ([]Observation, error)
+	CreateObservation(o *Observation) (*Observation, error)
 	DeleteObservation(id int) error
-	UpdateObservation(o map[string]string) error
+	UpdateObservation(id int, ob Observation) error
 
 	ConservationStatus(id int) (*ConservationStatus, error)
-	ConservationStatuses() ([]*ConservationStatus, error)
+	ConservationStatuses() ([]ConservationStatus, error)
 }
 
 // ConservationStatus je seznam kratic ogrozenosti vrste
@@ -62,19 +67,19 @@ type ConservationStatus struct {
 }
 
 // Species je vrsta, ki je bila opazena in zabelezena
+// ID je vzet od GBIF in je enak polju Key
 type Species struct {
-	ID                 int
-	Species            string
-	Kingdom            string
-	Family             string
-	Class              string
-	Phylum             string
-	Order              string
-	Genus              string
-	ScientificName     string `db:"scientific_name"`
-	CanonicalName      string `db:"canonical_name"`
-	ConservationStatus int    `db:"conservation_status"`
-	GBIFKey            int    `db:"gbif_key"`
+	ID                 *int
+	Species            *string
+	Kingdom            *string
+	Family             *string `db:"species_family"`
+	Class              *string `db:"species_class"`
+	Phylum             *string
+	Order              *string `db:"species_order"`
+	Genus              *string
+	ScientificName     *string `db:"scientific_name"`
+	CanonicalName      *string `db:"canonical_name"`
+	ConservationStatus *int    `db:"conservation_status"`
 }
 
 // Observation je zapis, da je na podani lokaciji bila opazena vrsta
