@@ -17,5 +17,3 @@
 vendor/
 # SSL Certificates (for HTTP/2)
 certs/
-# Configuration files
-config/

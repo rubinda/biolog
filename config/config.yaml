@@ -1,0 +1,13 @@
+# PostgreSQL podatki
+database:
+  host: localhost             # naslov streznika, na katerem tece PostgreSQL
+  port: 5432                  # vrata na katerih tece PostgreSQL
+  username:                   # uporabnisko ime, preko katerega deluje aplikacija
+  password:                   # geslo za uporabnisko ime
+  dbname:                     # ime podatkovne baze
+  testdb:                     # ime testne podatkovne baze
+  sslmode: disable            # SSL povezava do baze?
+
+# Podatki za go streznik
+server:
+  address: 4000   # vrata na katerih tece streznik
