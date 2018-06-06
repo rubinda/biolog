@@ -87,7 +87,7 @@ func (s *SpeciesService) ConservationStatus(id int) (*biolog.ConservationStatus,
 	return s.ConservationStatusFn(id)
 }
 
-// ConservationStatuses vrne vse mozne statuse ogrozenosti za doloceno vrsto
+// ConservationStatuses vrne vsa mozna stanja ogrozenosti za doloceno vrsto
 func (s *SpeciesService) ConservationStatuses() ([]*biolog.ConservationStatus, error) {
 	return s.ConservationStatusesFn()
 }

@@ -2,7 +2,6 @@ package http
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 
@@ -18,6 +17,68 @@ type UserHandler struct {
 	*chi.Mux
 }
 
+// UserID parameter model.
+//
+// Uporablja se za operacije, ki pricakujejo ID uporabnika v poti
+// swagger:parameters getUserByID deleteUser updateUser
+type UserID struct {
+	// ID uporabnika
+	//
+	// in: path
+	// required: true
+	// min: 10000000
+	// max: 99999999
+	ID int32
+}
+
+// UserExtID parameter model.
+//
+// Uporablja se za operacije, ki se sklicujejo na uporabnike glede na id zunajnega avtentikatorja
+// swagger:parameters getUserByExtID
+type UserExtID struct {
+	// ID zunanjega avtentikatorja za uporabnika
+	//
+	// in: path
+	// required: true
+	extID int
+}
+
+// UserBodyParams model.
+//
+// Uporablja se pri operacijah, ki zahtevajo podatke o uporabniku v
+// telesu zahtevka
+// swagger:parameters createUser
+type UserBodyParams struct {
+	// Podatki o uporabniku'
+	//
+	// in: body
+	// required: true
+	User *biolog.User
+}
+
+// AuthProviderResponse model.
+//
+// Se uporablja pri virih, ki vracajo podatke o zunanjih avtentikatorjih
+// swagger:response authProviderResponse
+type AuthProviderResponse struct {
+	// in: body
+	Payload *biolog.AuthProvider `json:"authProvider"`
+}
+
+// AuthProvidersID parameter model
+//
+// Uporablja se za operacijo, ko pridobivamo podrobnosti o
+// ponudniku avtentikacije
+// swagger:parameters getAuthProviderByID
+type AuthProvidersID struct {
+	// ID ponudnika avtentikacije
+	//
+	// in: path
+	// required: true
+	// min: 1
+	ID int
+}
+
 // NewUserHandler generira vse poti, ki se nanasajo na uporabnike
 func NewUserHandler() *UserHandler {
 	u := &UserHandler{
@@ -25,17 +86,65 @@ func NewUserHandler() *UserHandler {
 		Mux: chi.NewRouter(),
 	}
 	// Prefix do tukaj je ze /api/v1/users, poti pisemo od tega naprej
+
+	// swagger:route GET /users users getUsers
 	//
-	// Metode za uporabnike
+	// Pridobi vse uporabnike, ki imajo vsaj 1 javno opazanje
+	//
+	// Responses:
+	//		400: description: Prislo je do napake
+	//		200: []user
 	u.Get("/", u.GetUsers)
-	u.Post("/", u.CreateUser)
-	u.Get("/{id:\\d{8}}", u.GetUserByID)
-	u.Get("/{extID}", u.GetUserByExtID)
-	u.Patch("/{id:\\d{8}}", u.UpdateUser)
-	u.Delete("/{id:\\d{8}}", u.DeleteUser)
+
+	// TODO:
+	//	- pridobi ID iz URL preko middleware
+	u.Route("/{id:\\d{8}}", func(r chi.Router) {
+		// swagger:route GET /users/{id} users getUserByID
+		//
+		// Pridobi podrobnosti o uporabniku
+		//
+		// Responses:
+		//		400: description: Prislo je do napake
+		//		200: user
+		r.Get("/", u.GetUserByID)
+
+		// swagger:route PATCH /users/{id} users updateUser
+		//
+		// Posodobi podatke o uporabniku
+		//
+		// Responses:
+		//		400: description: Prislo je do napake
+		// 		204:
+		r.Patch("/", u.UpdateUser)
+
+		// swagger:route DELETE /users/{id} users deleteUser
+		//
+		// Zbrise uproabniski racun in vse zapise o uporabniku
+		//
+		// Responses:
+		//		400: description: Prislo je do napake
+		//		204:
+		r.Delete("/", u.DeleteUser)
+	})
 
 	// Metode za ponudnike zunanje avtentikacije
+
+	// swagger:route GET /auth_providers authproviders getAuthProviders
+	//
+	// Pridobi vse mozne ponudnike avtentikacije
+	//
+	// Responses:
+	//		400: description: Prislo je do napake
+	//		200: []authProviderResponse
 	u.Get("/auth_providers", u.GetAuthProviders)
+
+	// swagger:route GET /auth_providers/{id} authproviders getAuthProviderByID
+	//
+	// Pridobi podrobnosti o dolocenem ponudniku avtentikacije, ki je pri nas na voljo
+	//
+	// Responses:
+	//		400: description: Prislo je do napake
+	// 		200: authProviderResponse
 	u.Get("/auth_providers/{id:[0-9]+}", u.GetAuthProvider)
 
 	return u
@@ -43,7 +152,6 @@ func NewUserHandler() *UserHandler {
 
 // GetUserByID vrne podrobnosti o uporabniku s podanim ID
 // TODO:
-// 	- vrnejo se naj le uporabniki, ki imajo vsaj 1 javno opazanje
 // 	- boljse javljanje napak
 func (u *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 	id, parseErr := getIDFromURL(w, r, "id")
@@ -56,47 +164,11 @@ func (u *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 
 	// Preveri napake pri pridobivanju iz PB in ustrezno obvesti odjemalca
 	if err != nil {
-		respondWithError(w, 400, err.Error())
+		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	respondWithJSON(w, 200, usr)
-}
-
-// CreateUser ustvari novega uporabnika
-// TODO:
-// 	- javljanje napak za JSON telo
-//	- locena metoda za dekodiranje telesa (?)
-// FIXME:
-// 	- ustvari se lahko User brez ExternalUser
-func (u *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
-	var usr biolog.User
-
-	// Podatki iz telesa
-	decErr := json.NewDecoder(r.Body).Decode(&usr)
-
-	// Pri pretvarjanju je prislo do napake
-	if decErr != nil {
-		switch decErr {
-		case io.EOF:
-			respondWithError(w, 400, "Telo zahtevka pri kreiranju uporabnika ne more biti prazno")
-		default:
-			respondWithError(w, 400, "Napaka pri pretvarjanju JSONa iz telesa zahtevka")
-		}
-		return
-	}
-
-	// Kreiraj novega uporabnika
-	newUsr, err := u.UserService.CreateUser(usr)
-
-	// Napaka pri kreiranju
-	if err != nil {
-		respondWithError(w, 400, "Napaka pri ustvarjanju novega uporabnika")
-		return
-	}
-
-	// Uporabnik uspesno ustvarjen, poslji nazaj na novo shranjene podatke
-	respondWithJSON(w, 201, newUsr)
+	respondWithJSON(w, http.StatusOK, usr)
 }
 
 // GetUsers vrne vse uporabnike
@@ -104,19 +176,17 @@ func (u *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 // 	- vrnejo se naj le uporabniki, ki imajo javna opazanja
 // 	- paginacija
 func (u *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
-	var usrs []biolog.User
-
 	// Pridobi podatke o vseh uporabnikih, ki so na voljo
 	usrs, err := u.UserService.Users()
 
 	// Preveri ali je prislo do napake
 	if err != nil {
-		respondWithError(w, 400, "Pri poizvedbi nad vsemi uporabniki je prislo do napake")
+		respondWithError(w, http.StatusBadRequest, "Pri poizvedbi nad vsemi uporabniki je prislo do napake")
 		return
 	}
 
 	// Odgovori s seznamom vseh uporabnikov
-	respondWithJSON(w, 200, usrs)
+	respondWithJSON(w, http.StatusOK, usrs)
 }
 
 // UpdateUser posodobi podatke o dolocenem uporabniku
@@ -137,19 +207,19 @@ func (u *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	if decErr != nil {
 		switch {
 		case decErr == io.EOF:
-			respondWithError(w, 400, "Telo zahtevka pri kreiranju uporabnika ne more biti prazno")
+			respondWithError(w, http.StatusBadRequest, "Telo zahtevka pri kreiranju uporabnika ne more biti prazno")
 		default:
-			respondWithError(w, 400, "Napaka pri pretvarjanju JSONa iz telesa zahtevka")
+			respondWithError(w, http.StatusBadRequest, "Napaka pri pretvarjanju JSONa iz telesa zahtevka")
 		}
 		return
 	}
 	usr.ID = &id
 	if updErr := u.UserService.UpdateUser(id, usr); updErr != nil {
-		respondWithError(w, 400, updErr.Error())
+		respondWithError(w, http.StatusBadRequest, updErr.Error())
 		return
 	}
 
-	respondWithJSON(w, 204, nil)
+	respondWithJSON(w, http.StatusNoContent, nil)
 }
 
 // DeleteUser zbrise dolocenega uporabnika
@@ -168,41 +238,43 @@ func (u *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	// Preveri ce je prislo do napake
 	if err != nil {
-		respondWithError(w, 400, err.Error())
+		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	// Uporabnik uspesno zbrisan, poslji 204
-	respondWithJSON(w, 204, nil)
+	// Uporabnik uspesno zbrisan, poslji http.StatusNoContent
+	respondWithJSON(w, http.StatusNoContent, nil)
 
-}
-
-// GetUserByExtID pridobi podatke o zunanjem uporabniku (uporabnik od zunanjega avtentikatorja),
-// preko ID, ki ga ima uporabnik pri zunanjem avtentikatorju
-func (u *UserHandler) GetUserByExtID(w http.ResponseWriter, r *http.Request) {
-	// ID je vec kot 8 mestno stevilo (Google ima 22 stevk)
-	// Pustimo v string
-	extID := chi.URLParam(r, "id")
-
-	usr, err := u.UserService.UserByExtID(extID)
-	if err != nil {
-		respondWithError(w, 400, err.Error())
-		return
-	}
-
-	respondWithJSON(w, 200, usr)
 }
 
 // GetAuthProviders pridobi in izpise vse shranjene zunanje avtentikatorje
 func (u *UserHandler) GetAuthProviders(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Not implemented")
-	// TODO implement the method
+	// Pridobi podatke o vseh ponudnikih avtentikacije
+	ps, err := u.UserService.AuthProviders()
+
+	// Preveri ali je prislo do napake
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Pri pridobivanju ponudnikov avtentikacije je prislo do napake")
+		return
+	}
+
+	// Odgovori s seznamom vseh uporabnikov
+	respondWithJSON(w, http.StatusOK, ps)
 }
 
 // GetAuthProvider pridobi podrobnosti o posameznem ponudniku avtentikacije
 func (u *UserHandler) GetAuthProvider(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Not implemented")
-	// TODO implement the method
+	id, parseErr := getIDFromURL(w, r, "id")
+	if parseErr {
+		return
+	}
+
+	p, err := u.UserService.AuthProvider(id)
+
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, p)
 }

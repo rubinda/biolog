@@ -92,11 +92,13 @@ func (s *SpeciesService) Observation(id int) (*biolog.Observation, error) {
 // Observations vrne vse podane zapise o opazenih vrstah (vse, ki so javni)
 // TODO:
 // 	- preveri za override nad public_observations pri User
+// FIXME:
+// 	- vracanje lokacije kot koordinate, comma separated (trenutno je HEX)
 func (s *SpeciesService) Observations() ([]biolog.Observation, error) {
 	stmt := `SELECT * FROM observation WHERE public_visibility = TRUE`
 	obs := []biolog.Observation{}
 
-	if selErr := s.DB.Select(&obs, stmt, nil); selErr != nil {
+	if selErr := s.DB.Select(&obs, stmt); selErr != nil {
 		return nil, selErr
 	}
 
@@ -153,12 +155,12 @@ func (s *SpeciesService) ConservationStatus(id int) (*biolog.ConservationStatus,
 	return cs, nil
 }
 
-// ConservationStatuses vrne vse mozne statuse ogrozenosti za doloceno vrsto
+// ConservationStatuses vrne vsa mozna stanja ogrozenosti za doloceno vrsto
 func (s *SpeciesService) ConservationStatuses() ([]biolog.ConservationStatus, error) {
 	stmt := `SELECT * FROM conservation_status`
 	css := []biolog.ConservationStatus{}
 
-	if selErr := s.DB.Select(&css, stmt, nil); selErr != nil {
+	if selErr := s.DB.Select(&css, stmt); selErr != nil {
 		return nil, selErr
 	}
 

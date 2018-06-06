@@ -1,0 +1,686 @@
+{
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "schemes": [
+    "https"
+  ],
+  "swagger": "2.0",
+  "info": {
+    "description": "Aplikacija nudi podporo pri popisu vrst po Sloveniji",
+    "title": "Biolog API.",
+    "contact": {
+      "name": "David Rubin",
+      "email": "david.rubin95@gmail.com"
+    },
+    "version": "1.0.0"
+  },
+  "host": "localhost:4000",
+  "basePath": "/api/v1",
+  "paths": {
+    "/auth_providers": {
+      "get": {
+        "description": "Pridobi vse mozne ponudnike avtentikacije",
+        "tags": [
+          "authproviders"
+        ],
+        "operationId": "getAuthProviders",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/authProviderResponse"
+          },
+          "400": {
+            "$ref": "#/responses/"
+          }
+        }
+      }
+    },
+    "/auth_providers/{id}": {
+      "get": {
+        "description": "Pridobi podrobnosti o dolocenem ponudniku avtentikacije, ki je pri nas na voljo",
+        "tags": [
+          "authproviders"
+        ],
+        "operationId": "getAuthProviderByID",
+        "parameters": [
+          {
+            "minimum": 1,
+            "type": "integer",
+            "format": "int64",
+            "description": "ID ponudnika avtentikacije",
+            "name": "ID",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/authProviderResponse"
+          },
+          "400": {
+            "$ref": "#/responses/"
+          }
+        }
+      }
+    },
+    "/species": {
+      "get": {
+        "description": "Pridobi vse lokalno shranjene vrste",
+        "tags": [
+          "species"
+        ],
+        "operationId": "getSpecies",
+        "responses": {
+          "200": {
+            "description": "species",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/species"
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "description": "Ustvari nov zapis o podatkah neke vrste",
+        "tags": [
+          "species"
+        ],
+        "operationId": "createSpecies",
+        "parameters": [
+          {
+            "x-go-name": "Payload",
+            "name": "species",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/species"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "species",
+            "schema": {
+              "$ref": "#/definitions/species"
+            }
+          }
+        }
+      }
+    },
+    "/species/observations": {
+      "get": {
+        "description": "Pridobi vsa javna opazanja",
+        "tags": [
+          "observations"
+        ],
+        "operationId": "getObservations",
+        "responses": {
+          "200": {
+            "description": "observation",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/observation"
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "description": "Ustvari nov zapis o opazeni vrsti",
+        "tags": [
+          "observations"
+        ],
+        "operationId": "createObservation",
+        "parameters": [
+          {
+            "x-go-name": "Paylod",
+            "name": "observation",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/observation"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "observation",
+            "schema": {
+              "$ref": "#/definitions/observation"
+            }
+          }
+        }
+      }
+    },
+    "/species/observations/{id}": {
+      "get": {
+        "description": "Pridobi opazanje s podanim IDjem",
+        "tags": [
+          "observations"
+        ],
+        "operationId": "getObservationsByID",
+        "responses": {
+          "200": {
+            "description": "observation",
+            "schema": {
+              "$ref": "#/definitions/observation"
+            }
+          }
+        }
+      },
+      "delete": {
+        "description": "Zbrise podatek o opazeni vrsti",
+        "tags": [
+          "observations"
+        ],
+        "operationId": "deleteObservation",
+        "parameters": [
+          {
+            "type": "integer",
+            "format": "int64",
+            "x-go-name": "ID",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {}
+        }
+      },
+      "patch": {
+        "description": "Posodobi podatke o opazovalnem listu",
+        "tags": [
+          "observations"
+        ],
+        "operationId": "updateObservation",
+        "parameters": [
+          {
+            "type": "integer",
+            "format": "int64",
+            "x-go-name": "ID",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {}
+        }
+      }
+    },
+    "/species/{gbifKey}": {
+      "get": {
+        "description": "Pridobi podrobnosti o vrsti preko GBIF kljuca",
+        "tags": [
+          "species"
+        ],
+        "operationId": "getSpeciesByGbifKey",
+        "responses": {
+          "200": {
+            "description": "species",
+            "schema": {
+              "$ref": "#/definitions/species"
+            }
+          }
+        }
+      },
+      "delete": {
+        "description": "Zbrise shranjeno vrsto",
+        "tags": [
+          "species"
+        ],
+        "operationId": "deleteSpecies",
+        "parameters": [
+          {
+            "type": "integer",
+            "format": "int64",
+            "x-go-name": "GbifKey",
+            "name": "gbifKey",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {}
+        }
+      },
+      "patch": {
+        "description": "Posodobi podakte o shranjeni vrsti",
+        "tags": [
+          "species"
+        ],
+        "operationId": "updateSpecies",
+        "parameters": [
+          {
+            "type": "integer",
+            "format": "int64",
+            "x-go-name": "GbifKey",
+            "name": "gbifKey",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {}
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "description": "Pridobi vse uporabnike, ki imajo vsaj 1 javno opazanje",
+        "tags": [
+          "users"
+        ],
+        "operationId": "getUsers",
+        "responses": {
+          "200": {
+            "description": "user",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/user"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/responses/"
+          }
+        }
+      },
+      "post": {
+        "description": "Ustvari novega uporabnika v podatkovni bazi",
+        "tags": [
+          "users"
+        ],
+        "operationId": "createUser",
+        "parameters": [
+          {
+            "description": "Podatki o uporabniku'",
+            "name": "User",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/user"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "user",
+            "schema": {
+              "$ref": "#/definitions/user"
+            }
+          },
+          "400": {
+            "$ref": "#/responses/"
+          }
+        }
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "description": "Pridobi podrobnosti o uporabniku",
+        "tags": [
+          "users"
+        ],
+        "operationId": "getUserByID",
+        "parameters": [
+          {
+            "maximum": 99999999,
+            "minimum": 10000000,
+            "type": "integer",
+            "format": "int32",
+            "description": "ID uporabnika",
+            "name": "ID",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "user",
+            "schema": {
+              "$ref": "#/definitions/user"
+            }
+          },
+          "400": {
+            "$ref": "#/responses/"
+          }
+        }
+      },
+      "delete": {
+        "description": "Zbrise uproabniski racun in vse zapise o uporabniku",
+        "tags": [
+          "users"
+        ],
+        "operationId": "deleteUser",
+        "parameters": [
+          {
+            "maximum": 99999999,
+            "minimum": 10000000,
+            "type": "integer",
+            "format": "int32",
+            "description": "ID uporabnika",
+            "name": "ID",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {},
+          "400": {
+            "$ref": "#/responses/"
+          }
+        }
+      },
+      "patch": {
+        "description": "Posodobi podatke o uporabniku",
+        "tags": [
+          "users"
+        ],
+        "operationId": "updateUser",
+        "parameters": [
+          {
+            "maximum": 99999999,
+            "minimum": 10000000,
+            "type": "integer",
+            "format": "int32",
+            "description": "ID uporabnika",
+            "name": "ID",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {},
+          "400": {
+            "$ref": "#/responses/"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "authProvider": {
+      "description": "Placeholder, ce bi uporabili vec avtentikatorjev (recimo Google + Facebook)",
+      "type": "object",
+      "title": "AuthProvider (zunanji avtentikator)",
+      "required": [
+        "ID",
+        "Name"
+      ],
+      "properties": {
+        "ID": {
+          "description": "Identifikator ponudnika avtentikacije",
+          "type": "integer",
+          "format": "int64",
+          "example": 1
+        },
+        "Name": {
+          "description": "Ime ponudnika avtentikacije",
+          "type": "string",
+          "maxLength": 32,
+          "example": "Google"
+        }
+      },
+      "x-go-name": "AuthProvider",
+      "x-go-package": "github.com/rubinda/biolog"
+    },
+    "observation": {
+      "description": "Predstavlja opazovalni list, na katerem je zapisana ena opazena vrsta,\nkolicina osebkov ter cas in lokacija",
+      "type": "object",
+      "title": "Observation (zapis o opazeni vrsti)",
+      "required": [
+        "id",
+        "sigthingTime",
+        "sightingLocation",
+        "quantity",
+        "user",
+        "species"
+      ],
+      "properties": {
+        "id": {
+          "description": "Identifikator opazovalnega lista",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "ID",
+          "example": 1
+        },
+        "publicVisibility": {
+          "description": "Vidnost opazanja (javno ali zasebno) za posamezen opazovalni list",
+          "type": "boolean",
+          "x-go-name": "PublicVisibility",
+          "example": true
+        },
+        "quantity": {
+          "description": "Kolicina osebkov opazenih",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Quantity",
+          "example": 8
+        },
+        "sightingLocation": {
+          "description": "Lokacija opazanja, ustvari se tocka v skladu z postGIS geography",
+          "type": "string",
+          "x-go-name": "SightingLocation",
+          "example": "-71.060316, 48.432044"
+        },
+        "sigthingTime": {
+          "description": "Casovni posnetek trenutka, ko je vrsta bila opazena",
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "SightingTime"
+        },
+        "species": {
+          "description": "Vrsta, ki je bila opazena",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Species",
+          "example": 5231190
+        },
+        "user": {
+          "description": "Uporabnik, ki je kreiral opazovalni list",
+          "type": "integer",
+          "format": "int64",
+          "maximum": 99999999,
+          "minimum": 10000000,
+          "x-go-name": "User",
+          "example": 10000000
+        }
+      },
+      "x-go-name": "Observation",
+      "x-go-package": "github.com/rubinda/biolog"
+    },
+    "species": {
+      "description": "Podatki so vzeti in spletne strani GBIF, tudi ID",
+      "type": "object",
+      "title": "Species (lokalno shranjena vrsta)",
+      "required": [
+        "id",
+        "species",
+        "kingdom",
+        "family",
+        "class",
+        "phylum",
+        "order",
+        "genus",
+        "scientificName",
+        "canonicalName",
+        "conservationStatus"
+      ],
+      "properties": {
+        "canonicalName": {
+          "description": "Kanonicno ime za vrsto (samo latinsko ime)",
+          "type": "string",
+          "maxLength": 128,
+          "x-go-name": "CanonicalName",
+          "example": "Passer domesticus"
+        },
+        "class": {
+          "description": "Ime razreda za vrsto",
+          "type": "string",
+          "maxLength": 64,
+          "x-go-name": "Class",
+          "example": "Aves"
+        },
+        "conservationStatus": {
+          "description": "Stanje ogrozenosti vrste",
+          "type": "integer",
+          "format": "int64",
+          "maximum": 10,
+          "minimum": 1,
+          "x-go-name": "ConservationStatus",
+          "example": 8
+        },
+        "family": {
+          "description": "Ime druzine za vrsto",
+          "type": "string",
+          "maxLength": 64,
+          "x-go-name": "Family",
+          "example": "Passeridae"
+        },
+        "genus": {
+          "description": "Ime roda za vrsto",
+          "type": "string",
+          "maxLength": 64,
+          "x-go-name": "Genus",
+          "example": "Passer"
+        },
+        "id": {
+          "description": "Enolicni identifikator za vrsto,\nkljuc je enak kot pri GBIF API",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "ID",
+          "example": 5231190
+        },
+        "kingdom": {
+          "description": "Ime kraljestva za vrsto",
+          "type": "string",
+          "maxLength": 64,
+          "x-go-name": "Kingdom",
+          "example": "Animalia"
+        },
+        "order": {
+          "description": "Ime reda za vrsto",
+          "type": "string",
+          "maxLength": 64,
+          "x-go-name": "Order",
+          "example": "Passeriformes"
+        },
+        "phylum": {
+          "description": "Ime debla za vrsto",
+          "type": "string",
+          "maxLength": 64,
+          "x-go-name": "Phylum",
+          "example": "Chordata"
+        },
+        "scientificName": {
+          "description": "Znanstveno ime za vrsto (latinsko ime, vcasih skupaj z avtorjem)",
+          "type": "string",
+          "maxLength": 128,
+          "x-go-name": "ScientificName",
+          "example": "Passer domesticus (Linnaeus, 1758)"
+        },
+        "species": {
+          "description": "Ime vrste",
+          "type": "string",
+          "maxLength": 64,
+          "x-go-name": "Species",
+          "example": "Passer domesticus"
+        }
+      },
+      "x-go-name": "Species",
+      "x-go-package": "github.com/rubinda/biolog"
+    },
+    "user": {
+      "description": "Podatki o uporabniku so vzeti od zunanjega avtentikatorja",
+      "type": "object",
+      "title": "User (uporabnik nase aplikacijo)",
+      "required": [
+        "id",
+        "displayName",
+        "externalID",
+        "givenName",
+        "familyName",
+        "email"
+      ],
+      "properties": {
+        "displayName": {
+          "description": "Prikazno ime za uporabnika",
+          "type": "string",
+          "maxLength": 64,
+          "x-go-name": "DisplayName",
+          "example": "David Rubin"
+        },
+        "email": {
+          "description": "Elektronski naslov uporabnika",
+          "type": "string",
+          "format": "email",
+          "maxLength": 128,
+          "x-go-name": "Email"
+        },
+        "externalID": {
+          "description": "ID zunanjega avtentikatorja za tega uporabnika",
+          "type": "string",
+          "maxLength": 255,
+          "x-go-name": "ExternalID",
+          "example": "8457232358972358923566"
+        },
+        "familyName": {
+          "description": "Priimek uporabnika",
+          "type": "string",
+          "maxLength": 32,
+          "pattern": "[A-Za-z]+",
+          "x-go-name": "FamilyName",
+          "example": "Rubin"
+        },
+        "givenName": {
+          "description": "Ime uporabnika",
+          "type": "string",
+          "maxLength": 32,
+          "pattern": "[A-Za-z]+",
+          "x-go-name": "GivenName",
+          "example": "David"
+        },
+        "id": {
+          "description": "8 mestni ID dolocenega uporabnika",
+          "type": "integer",
+          "format": "int64",
+          "maximum": 99999999,
+          "minimum": 10000000,
+          "x-go-name": "ID",
+          "example": 10000000
+        },
+        "picture": {
+          "description": "URL do prikazne slike uporabnika",
+          "type": "string",
+          "maxLength": 255,
+          "x-go-name": "Picture",
+          "example": "https://www.biologapp.com/static/img/david-profile.png"
+        },
+        "publicObservations": {
+          "description": "Pove ali uporabnik dovoli javen dostop do svojih opazanj",
+          "type": "boolean",
+          "x-go-name": "PublicObservations"
+        }
+      },
+      "x-go-name": "User",
+      "x-go-package": "github.com/rubinda/biolog"
+    }
+  },
+  "responses": {
+    "authProviderResponse": {
+      "description": "AuthProviderResponse model.\n\nSe uporablja pri virih, ki vracajo podatke o zunanjih avtentikatorjih",
+      "schema": {
+        "$ref": "#/definitions/authProvider"
+      }
+    }
+  }
+}

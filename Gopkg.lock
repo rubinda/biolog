@@ -22,6 +22,12 @@
   revision = "e223a795a06a5598451cf022558c17c779f5a7ab"
 
 [[projects]]
+  name = "github.com/golang/protobuf"
+  packages = ["proto"]
+  revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
+  version = "v1.1.0"
+
+[[projects]]
   name = "github.com/hashicorp/hcl"
   packages = [
     ".",
@@ -122,6 +128,24 @@
   revision = "374053ea96cb300f8671b8d3b07edeeb06e203b4"
 
 [[projects]]
+  branch = "master"
+  name = "golang.org/x/net"
+  packages = [
+    "context",
+    "context/ctxhttp"
+  ]
+  revision = "1e491301e022f8f977054da4c2d852decd59571f"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/oauth2"
+  packages = [
+    ".",
+    "internal"
+  ]
+  revision = "1e0a3fa8ba9a5c9eb35c271780101fdaf1b205d7"
+
+[[projects]]
   name = "golang.org/x/sys"
   packages = [
     "unix",
@@ -142,6 +166,20 @@
   revision = "8c34f848e18c4bd34d02db7f19a0ed1a0a8f5852"
 
 [[projects]]
+  name = "google.golang.org/appengine"
+  packages = [
+    "internal",
+    "internal/base",
+    "internal/datastore",
+    "internal/log",
+    "internal/remote_api",
+    "internal/urlfetch",
+    "urlfetch"
+  ]
+  revision = "150dc57a1b433e64154302bdc40b6bb8aefa313a"
+  version = "v1.0.0"
+
+[[projects]]
   name = "gopkg.in/yaml.v2"
   packages = ["."]
   revision = "7f97868eec74b32b0982dd158a51a446d1da7eb5"
@@ -150,6 +188,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b8d69838016388b073e3de89a7abcfa2bcaf21394fbd52f1c2ada5d5620af730"
+  inputs-digest = "4b192ba9839092443afa5bce6d42efd22d0ceffc9c12d824ae24f98af3d13b61"
   solver-name = "gps-cdcl"
   solver-version = 1

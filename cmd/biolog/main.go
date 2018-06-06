@@ -1,4 +1,20 @@
-//Package main povezuje posamezne pakete med sabo in vsebuje le osnovo za zagon streznika
+// Package main Biolog API.
+//
+// Aplikacija nudi podporo pri popisu vrst po Sloveniji
+//
+//		Schemes: https
+//		Host: localhost:4000
+//		BasePath: /api/v1
+// 		Version: 1.0.0
+//		Contact: David Rubin<david.rubin95@gmail.com>
+//
+//		Consumes:
+//		- application/json
+//
+//		Produces:
+//		-application/json
+//
+// swagger:meta
 package main
 
 import (
@@ -41,6 +57,9 @@ func main() {
 	ss := &postgres.SpeciesService{DB: db}
 	// Dodaj instance service na handlerja
 	h := http.NewRootHandler(us, ss)
+	// Handlerju vpisi podatke za dostop do Google APIs
+	h.OAuthConf.ClientID = viper.GetString("server.client-id")
+	h.OAuthConf.ClientSecret = viper.GetString("server.client-secret")
 
 	// Zazene nov streznik in caka na signal interrupt
 	sAddr := ":" + viper.GetString("server.address")
