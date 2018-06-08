@@ -2,10 +2,22 @@
 
 
 [[projects]]
+  name = "cloud.google.com/go"
+  packages = ["compute/metadata"]
+  revision = "0fd7230b2a7505833d5f69b75cbd6c9582401479"
+  version = "v0.23.0"
+
+[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
   version = "v1.1.0"
+
+[[projects]]
+  name = "github.com/dgrijalva/jwt-go"
+  packages = ["."]
+  revision = "06ea1031745cb8b3dab3f6a236daf2b0aa468b7e"
+  version = "v3.2.0"
 
 [[projects]]
   name = "github.com/fsnotify/fsnotify"
@@ -137,15 +149,6 @@
   revision = "1e491301e022f8f977054da4c2d852decd59571f"
 
 [[projects]]
-  branch = "master"
-  name = "golang.org/x/oauth2"
-  packages = [
-    ".",
-    "internal"
-  ]
-  revision = "1e0a3fa8ba9a5c9eb35c271780101fdaf1b205d7"
-
-[[projects]]
   name = "golang.org/x/sys"
   packages = [
     "unix",
@@ -168,10 +171,13 @@
 [[projects]]
   name = "google.golang.org/appengine"
   packages = [
+    ".",
     "internal",
+    "internal/app_identity",
     "internal/base",
     "internal/datastore",
     "internal/log",
+    "internal/modules",
     "internal/remote_api",
     "internal/urlfetch",
     "urlfetch"
@@ -188,6 +194,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "4b192ba9839092443afa5bce6d42efd22d0ceffc9c12d824ae24f98af3d13b61"
+  inputs-digest = "129776ede299c41257616170e62235106d88e7b8ee286ff0cfaa44fad0fdd10c"
   solver-name = "gps-cdcl"
   solver-version = 1

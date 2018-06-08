@@ -37,6 +37,19 @@ func (s *UserService) Users() ([]biolog.User, error) {
 	return us, nil
 }
 
+// UserByEmail vrne uporabnika, ki ima enak email
+func (s *UserService) UserByEmail(email string) (*biolog.User, error) {
+	stmt := `SELECT * FROM biolog_user WHERE email = $1 LIMIT 1`
+	u := &biolog.User{}
+	if getErr := s.DB.Get(u, stmt, email); getErr != nil {
+		if getErr == sql.ErrNoRows {
+			return nil, errors.New("Not found")
+		}
+		return nil, getErr
+	}
+	return u, nil
+}
+
 // CreateUser ustvari novega uporabnika za uporabo aplikacije
 func (s *UserService) CreateUser(u biolog.User) (*biolog.User, error) {
 	newUser := biolog.User{}

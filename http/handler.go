@@ -1,20 +1,28 @@
 package http
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/rubinda/biolog"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+)
+
+var (
+	googleAuth = 1
+	jwtSignKey = []byte(viper.GetString("jwt.key"))
 )
 
 // Handler je kolekcija vseh nasih service handler
@@ -23,6 +31,41 @@ type Handler struct {
 	SpeciesHandler *SpeciesHandler
 	OAuthConf      *oauth2.Config
 	*chi.Mux
+}
+
+// GoogleUser je model za odgovor podatkov, ki jih poslje OAuth na Google
+type GoogleUser struct {
+	// Google ID od uporabnika
+	// Tipicno 22 mestno stevilo
+	ID string `json:"sub"`
+
+	// Ime uporabnika
+	// Tipicno GivenName + FamilyName
+	Name string `json:"name"`
+
+	// Ime uporabnika
+	GivenName string `json:"given_name"`
+
+	// Priimek uporabnika
+	FamilyName string `json:"family_name"`
+
+	// URL do Google strani uporabnika
+	Profile string `json:"profile"`
+
+	// URL do slike
+	Picture string `json:"picture"`
+
+	// Email naslov uporabnika
+	Email string `json:"email"`
+
+	// Vrednost ali je Email preverjen (?)
+	EmailVerified bool `json:"email_verified"`
+}
+
+// EmailClaims je nadgradnja standardnega Claims pri JWT
+type EmailClaims struct {
+	Email string `json:"email"`
+	jwt.StandardClaims
 }
 
 // NewRootHandler ustvari starsa vseh ostalih handlerjev, nosi tudi primarni Router
@@ -34,7 +77,9 @@ func NewRootHandler(us biolog.UserService, ss biolog.SpeciesService) *Handler {
 	// Ustvari novo konfiguracijo za Google OAuth2, ClientID in ClientSecret
 	// se dodata v cmd/biolog/main.go takoj za to funkcijo
 	h.OAuthConf = &oauth2.Config{
-		RedirectURL: "https://127.0.0.1:4000/api/v1/authenticate",
+		ClientID:     viper.GetString("oauth.google.client-id"),
+		ClientSecret: viper.GetString("oauth.google.client-secret"),
+		RedirectURL:  "https://127.0.0.1:4000/api/v1/authenticate",
 		Scopes: []string{
 			"https://www.googleapis.com/auth/userinfo.email",
 		},
@@ -56,15 +101,16 @@ func NewRootHandler(us biolog.UserService, ss biolog.SpeciesService) *Handler {
 		h.UserHandler = NewUserHandler()
 		h.UserHandler.UserService = us
 		// Ustvari nov router z 'fresh middleware stack'
-		r.Group(func(ru chi.Router) {
-			ru.Mount("/users", h.UserHandler)
+		r.Group(func(r chi.Router) {
+			r.Use(JWTAuthMiddleware)
+			r.Mount("/users", h.UserHandler)
 		})
 
 		// Podpoti za endpoint '/species'
 		h.SpeciesHandler = NewSpeciesHandler()
 		h.SpeciesHandler.SpeciesService = ss
-		r.Group(func(rs chi.Router) {
-			rs.Mount("/species", h.SpeciesHandler)
+		r.Group(func(r chi.Router) {
+			r.Mount("/species", h.SpeciesHandler)
 		})
 
 		// Podpoti za preusmeranje prijav na ponudnika avtentikacije
@@ -164,10 +210,12 @@ func (h *Handler) GoogleLoginHandler(w http.ResponseWriter, r *http.Request) {
 	// Cookie je veljaven samo 60 sekund
 	state := randToken()
 	sc := &http.Cookie{
-		Name:   "originalState",
-		Value:  state,
-		MaxAge: 60,
-		Path:   "/",
+		Name:     "originalState",
+		Value:    state,
+		MaxAge:   60,
+		Path:     "/",
+		Secure:   true,
+		HttpOnly: true,
 	}
 	http.SetCookie(w, sc)
 	url := h.OAuthConf.AuthCodeURL(state)
@@ -175,7 +223,7 @@ func (h *Handler) GoogleLoginHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, url, http.StatusSeeOther)
 }
 
-// AuthHandler je pot, kamor prispe preusmerjena povezava iz strani zunanjega avtentikatorja (Google),
+// AuthHandler je pot, kamor prispe callback iz strani zunanjega avtentikatorja (Google),
 // Preveri ali se uporabnik ponovno prijavlja (shrani podatke), ali pa ce je ze registriran z aplikacijo
 //
 // swagger:route GET /authenticate login authenticate
@@ -184,15 +232,18 @@ func (h *Handler) GoogleLoginHandler(w http.ResponseWriter, r *http.Request) {
 //
 // Responses:
 //		401:
+//      301:
 //
 // TODO:
 // 	- podatke o uporabniku shrani v PB kot biolog.User
-// 	- preveri ali uporabnik z id (email) ze obstaja v PB
+// 	- preveri ali uporabnik z id (email) ze obstaja v PB, potem preskoci novo shranjevanje
+//  - (?) shrani Token, RefreshToken in ExpiresAt
 func (h *Handler) AuthHandler(w http.ResponseWriter, r *http.Request) {
 	// Preveri ali se stanje iz *LoginHandler in v odgovoru ujemata
 	sc, err := r.Cookie("originalState")
 	if err != nil || sc.Value != r.FormValue("state") {
 		// Stanje se ne ujema ali pa je prislo do napake, odgovori z 401
+		log.Error(err.Error())
 		http.Error(w, "Neveljavno stanje v odgovoru", http.StatusUnauthorized)
 		return
 	}
@@ -216,13 +267,111 @@ func (h *Handler) AuthHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
-	userData, err := ioutil.ReadAll(userResponse.Body)
+
+	// Shrani prejete podatke v GoogleUser
+	var gu GoogleUser
+	err = json.NewDecoder(userResponse.Body).Decode(&gu)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
+	}
+	log.Info(gu.Email)
+
+	// Preveri ali uporabnik ze obstaja (preko unique emaila), ce ne ga shrani
+	var u *biolog.User
+	u, err = h.UserHandler.UserService.UserByEmail(gu.Email)
+
+	if err != nil {
+		if err.Error() == "Not found" {
+			// Uporabnik ni bil najden, torej se prijavlja na novo
+			// Iz GoogleUser izgradi biolog.User in ga shrani v PB
+			u = &biolog.User{
+				ExternalID:           &gu.ID,
+				DisplayName:          &gu.Name,
+				GivenName:            &gu.GivenName,
+				FamilyName:           &gu.FamilyName,
+				Email:                &gu.Email,
+				Picture:              &gu.Picture,
+				ExternalAuthProvider: &googleAuth,
+			}
+			u, err = h.UserHandler.UserService.CreateUser(*u)
+			if err != nil {
+				log.Error("Uporabnika ni bilo mogoce kreirati")
+				log.Error(err)
+				respondWithError(w, http.StatusInternalServerError, "Napaka pri kreiranju uporabnika")
+			}
+		} else {
+			log.Error(err.Error())
+			respondWithError(w, http.StatusInternalServerError, "Neznana napaka pri kreiranju uporabnika")
+		}
 	}
 
-	log.Println(string(userData))
+	// Dodeli nov JWT uporabniku
+	// TODO:
+	//  - preveri cas za potek JWT tokena (10-15min ?)
+	claims := &EmailClaims{
+		gu.Email,
+		jwt.StandardClaims{
+			ExpiresAt: time.Now().Unix() + 3600,
+			Issuer:    "biolog-app",
+		},
+	}
+	jwttok := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	ss, _ := jwttok.SignedString(jwtSignKey)
+	ssJSON, _ := json.Marshal(map[string]string{"token": ss})
+
+	// Odgovori z JWT v telesu zahtevka
+	w.WriteHeader(http.StatusOK)
+	w.Write(ssJSON)
+	// TODO:
+	//  - logika za preusmeritev, ali naj bo to na frontend (vrni JWT v Cookie in preusmeri?)
+	//  - refresh token
+	// glej https://stackoverflow.com/questions/43090518/how-to-properly-handle-a-jwt-refresh
 
 	// Po uspesni prijavi uporabnika preusmeri na domaco stran
-	http.Redirect(w, r, "/home", http.StatusMovedPermanently)
+	//http.Redirect(w, r, "/home", http.StatusMovedPermanently)
+}
+
+// Za potrebe Context pri JWTAuthMiddleware (se izogne napaki 'Can't use basic type string for context key')
+type contextEmailKey string
+
+func (c contextEmailKey) String() string {
+	return string(c)
+}
+
+// JWTAuthMiddleware se uporabi, da preveri ali ima zahtevek ustrezen JWT in
+// mu je dovoljen dostop do vira
+func JWTAuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Token loci od polja 'Bearer ' in ga sparsaj
+		reqAuth := r.Header.Get("Authorization")
+		tokStr := strings.Split(reqAuth, "Bearer ")[1]
+		token, err := jwt.ParseWithClaims(tokStr, &EmailClaims{}, func(token *jwt.Token) (interface{}, error) {
+			return []byte(viper.GetString("jwt.key")), nil
+		})
+
+		if claims, ok := token.Claims.(*EmailClaims); ok && token.Valid {
+			// Token je veljaven, prav tako smo iz Claims pridobili Email uporabnika ki prozi zahtevo
+			var emailKey = contextEmailKey("userEmail")
+			ctx := context.WithValue(r.Context(), emailKey, claims.Email)
+
+			// Uporabniku dovoli prehod naprej
+			next.ServeHTTP(w, r.WithContext(ctx))
+		} else if ve, ok := err.(*jwt.ValidationError); ok {
+
+			if ve.Errors&jwt.ValidationErrorMalformed != 0 {
+				// Token ni pravilne oblike
+				respondWithError(w, http.StatusBadRequest, "Tokec ni veljavne oblike")
+
+			} else if ve.Errors&(jwt.ValidationErrorExpired|jwt.ValidationErrorNotValidYet) != 0 {
+				// Token je bodisi potekel, ali pa se ni veljaven
+				respondWithError(w, http.StatusBadRequest, "Tokec vam je potekel")
+			} else {
+				log.Info("Something is wrong with the JWT token:", err)
+				respondWithError(w, http.StatusBadRequest, "Napaka pri obdelavi tokeca")
+			}
+		} else {
+			log.Info("Couldn't handle this JWT token:", err)
+			respondWithError(w, http.StatusBadRequest, "Napaka pri obdelavi tokeca")
+		}
+	})
 }

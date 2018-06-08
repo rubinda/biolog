@@ -57,9 +57,6 @@ func main() {
 	ss := &postgres.SpeciesService{DB: db}
 	// Dodaj instance service na handlerja
 	h := http.NewRootHandler(us, ss)
-	// Handlerju vpisi podatke za dostop do Google APIs
-	h.OAuthConf.ClientID = viper.GetString("server.client-id")
-	h.OAuthConf.ClientSecret = viper.GetString("server.client-secret")
 
 	// Zazene nov streznik in caka na signal interrupt
 	sAddr := ":" + viper.GetString("server.address")

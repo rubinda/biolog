@@ -10,6 +10,7 @@ import (
 type UserService interface {
 	User(id int) (*User, error)
 	Users() ([]User, error)
+	UserByEmail(email string) (*User, error)
 	CreateUser(u User) (*User, error)
 	DeleteUser(id int) (int64, error)
 	UpdateUser(id int, u User) error
@@ -71,6 +72,7 @@ type User struct {
 	// required: true
 	// max length: 128
 	// swagger:strfmt email
+	// unique: true
 	// example: david@biologapp.com
 	Email *string `json:"email"`
 
