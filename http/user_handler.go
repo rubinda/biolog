@@ -96,6 +96,15 @@ func NewUserHandler() *UserHandler {
 	//		200: []user
 	u.Get("/", u.GetUsers)
 
+	// swagger:route GET /users/me user meDetails
+	//
+	// Pridobi podrobnosti o trenutno prijavljenem uporabniku
+	//
+	// Responses:
+	//		400: description: Prislo je do napake
+	//		200: []user
+	u.Get("/me", u.MeDetails)
+
 	// TODO:
 	//	- pridobi ID iz URL preko middleware
 	u.Route("/{id:\\d{8}}", func(r chi.Router) {
@@ -187,6 +196,20 @@ func (u *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 
 	// Odgovori s seznamom vseh uporabnikov
 	respondWithJSON(w, http.StatusOK, usrs)
+}
+
+// MeDetails vrne podrobnosti o uporabniku, ki je trenutno prijavljen
+func (u *UserHandler) MeDetails(w http.ResponseWriter, r *http.Request) {
+	// Iz zahtebve pridobi podatke o Emailu uporabnika
+	email := getUserEmail(r)
+
+	usr, err := u.UserService.UserByEmail(email)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, usr)
 }
 
 // UpdateUser posodobi podatke o dolocenem uporabniku

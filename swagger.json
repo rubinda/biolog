@@ -66,6 +66,31 @@
         }
       }
     },
+    "/authenticate": {
+      "get": {
+        "description": "Poskrbi za callback pri avtentikaciji z zunanjim ponudnikom (Google)",
+        "tags": [
+          "login"
+        ],
+        "operationId": "authenticate",
+        "responses": {
+          "301": {},
+          "401": {}
+        }
+      }
+    },
+    "/login/google": {
+      "get": {
+        "description": "Preusmeri povezavo na ustrezen Google login",
+        "tags": [
+          "login"
+        ],
+        "operationId": "loginGoogle",
+        "responses": {
+          "303": {}
+        }
+      }
+    },
     "/species": {
       "get": {
         "description": "Pridobi vse lokalno shranjene vrste",
@@ -279,6 +304,15 @@
           "users"
         ],
         "operationId": "getUsers",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "JWT Token potreben za avtorizacijo zahteve",
+            "name": "Authorization",
+            "in": "header",
+            "required": true
+          }
+        ],
         "responses": {
           "200": {
             "description": "user",
@@ -287,35 +321,6 @@
               "items": {
                 "$ref": "#/definitions/user"
               }
-            }
-          },
-          "400": {
-            "$ref": "#/responses/"
-          }
-        }
-      },
-      "post": {
-        "description": "Ustvari novega uporabnika v podatkovni bazi",
-        "tags": [
-          "users"
-        ],
-        "operationId": "createUser",
-        "parameters": [
-          {
-            "description": "Podatki o uporabniku'",
-            "name": "User",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/user"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "user",
-            "schema": {
-              "$ref": "#/definitions/user"
             }
           },
           "400": {
@@ -602,7 +607,7 @@
     "user": {
       "description": "Podatki o uporabniku so vzeti od zunanjega avtentikatorja",
       "type": "object",
-      "title": "User (uporabnik nase aplikacijo)",
+      "title": "User (uporabnik nase aplikacije)",
       "required": [
         "id",
         "displayName",

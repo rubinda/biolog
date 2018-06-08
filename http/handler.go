@@ -25,6 +25,18 @@ var (
 	jwtSignKey = []byte(viper.GetString("jwt.key"))
 )
 
+// JWTToken je swagger model za parameter.
+// Pove, da je na zahtevah potreben JWT Token.
+//
+// swagger:parameters getUsers
+type JWTToken struct {
+	// JWT Token potreben za avtorizacijo zahteve
+	//
+	// in: header
+	// required: true
+	Authorization string
+}
+
 // Handler je kolekcija vseh nasih service handler
 type Handler struct {
 	UserHandler    *UserHandler
@@ -110,6 +122,7 @@ func NewRootHandler(us biolog.UserService, ss biolog.SpeciesService) *Handler {
 		h.SpeciesHandler = NewSpeciesHandler()
 		h.SpeciesHandler.SpeciesService = ss
 		r.Group(func(r chi.Router) {
+			r.Use(JWTAuthMiddleware)
 			r.Mount("/species", h.SpeciesHandler)
 		})
 
@@ -169,6 +182,11 @@ func getIDFromURL(w http.ResponseWriter, r *http.Request, parameter string) (int
 	}
 
 	return id, false
+}
+
+// GetUserEmail iz Context-a zahteve pobere uporabnikov email in ga vrne kot string
+func getUserEmail(r *http.Request) string {
+	return r.Context().Value(contextEmailKey("userEmail")).(string)
 }
 
 // Vzeto iz https://skarlso.github.io/2016/06/12/google-signin-with-go/,
@@ -351,6 +369,10 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 
 		if claims, ok := token.Claims.(*EmailClaims); ok && token.Valid {
 			// Token je veljaven, prav tako smo iz Claims pridobili Email uporabnika ki prozi zahtevo
+			if claims.Email == "" {
+				respondWithError(w, http.StatusBadRequest, "Tokec nima polja email")
+				return
+			}
 			var emailKey = contextEmailKey("userEmail")
 			ctx := context.WithValue(r.Context(), emailKey, claims.Email)
 
@@ -365,6 +387,11 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 			} else if ve.Errors&(jwt.ValidationErrorExpired|jwt.ValidationErrorNotValidYet) != 0 {
 				// Token je bodisi potekel, ali pa se ni veljaven
 				respondWithError(w, http.StatusBadRequest, "Tokec vam je potekel")
+
+			} else if ve.Errors&(jwt.ValidationErrorSignatureInvalid) != 0 {
+				// Token nima veljavnega podpisa (nekdo ga je spreminjal)
+				respondWithError(w, http.StatusBadRequest, "Tokec nima veljavnega podpisa")
+
 			} else {
 				log.Info("Something is wrong with the JWT token:", err)
 				respondWithError(w, http.StatusBadRequest, "Napaka pri obdelavi tokeca")
