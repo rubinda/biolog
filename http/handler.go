@@ -3,8 +3,11 @@ package http
 import (
 	"context"
 	"crypto/rand"
+	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
+	"math/big"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,6 +16,7 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/go-chi/cors"
 	"github.com/rubinda/biolog"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -61,9 +65,6 @@ type GoogleUser struct {
 	// Priimek uporabnika
 	FamilyName string `json:"family_name"`
 
-	// URL do Google strani uporabnika
-	Profile string `json:"profile"`
-
 	// URL do slike
 	Picture string `json:"picture"`
 
@@ -78,6 +79,17 @@ type GoogleUser struct {
 type EmailClaims struct {
 	Email string `json:"email"`
 	jwt.StandardClaims
+}
+
+// GoogleKey je tip za Google Javne JWT kljuce, ki se uporabljajo za
+// preverjanje podpisa
+type GoogleKey struct {
+	Kty string
+	Alg string
+	Use string
+	Kid string
+	N   string
+	E   string
 }
 
 // NewRootHandler ustvari starsa vseh ostalih handlerjev, nosi tudi primarni Router
@@ -97,6 +109,20 @@ func NewRootHandler(us biolog.UserService, ss biolog.SpeciesService) *Handler {
 		},
 		Endpoint: google.Endpoint,
 	}
+
+	// Basic CORS
+	// for more ideas, see: https://developer.github.com/v3/#cross-origin-resource-sharing
+	cors := cors.New(cors.Options{
+		// AllowedOrigins: []string{"https://foo.com"}, // Use this to allow specific origin hosts
+		AllowedOrigins: []string{"*"},
+		//AllowOriginFunc: func(r *http.Request, origin string) bool { return true },
+		AllowedMethods:   []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300, // Maximum value not ignored by any of major browsers
+	})
+	h.Use(cors.Handler)
 
 	// A good base middleware stack
 	h.Use(middleware.RequestID)
@@ -129,7 +155,7 @@ func NewRootHandler(us biolog.UserService, ss biolog.SpeciesService) *Handler {
 		// Podpoti za preusmeranje prijav na ponudnika avtentikacije
 		r.Route("/login", func(r chi.Router) {
 
-			r.Get("/google", h.GoogleLoginHandler)
+			r.Post("/google", h.GoogleLoginHandler)
 		})
 
 		// Podpoti za callback od ponudnikov avtentikacije
@@ -207,38 +233,134 @@ func randToken() string {
 	return base64.StdEncoding.EncodeToString(b)
 }
 
-// Se izogne opozorilo, naj se osnovni tip string ne uporabi kot Context key
-type contextKey string
-
-func (c contextKey) String() string {
-	return string(c)
-}
-
-// GoogleLoginHandler preusmeri prihajajoco zahtevo na ustrezen Google API
-// URL na katerem se uporabnik vpise
-//
-// swagger:route GET /login/google login loginGoogle
-//
-// Preusmeri povezavo na ustrezen Google login
-//
-// Responses:
-// 		303:
+// GoogleLoginHandler poskrbi za prijavo s Google racunom. Avtentikacijski postopek se
+// izvede na frontend (glej Vue frontend), tukaj se preveri token in ustvari ustrezna preusmeritev
 func (h *Handler) GoogleLoginHandler(w http.ResponseWriter, r *http.Request) {
-	// Ustavi nakljucno zaporedje znakov za stanje in ga dodaj v Cookie na povezavo
-	// Cookie je veljaven samo 60 sekund
-	state := randToken()
-	sc := &http.Cookie{
-		Name:     "originalState",
-		Value:    state,
-		MaxAge:   60,
-		Path:     "/",
-		Secure:   true,
-		HttpOnly: true,
+	// Uporabnik, v katerega bomo prebrali podatke
+	var u *biolog.User
+	// Prebere telo zahtevka (trenutno le JSON z poljem token)
+	decoder := json.NewDecoder(r.Body)
+	tokStr := struct {
+		Token string `json:"token"`
+	}{}
+	if err := decoder.Decode(&tokStr); err != nil {
+		respondWithError(w, 400, "Please include a token in the request body")
 	}
-	http.SetCookie(w, sc)
-	url := h.OAuthConf.AuthCodeURL(state)
-	// Poslji 303 in preusmeri na ustrezen URL
-	http.Redirect(w, r, url, http.StatusSeeOther)
+
+	// Parsaj token, hkrati se preveri tudi Google podpis
+	tok, err := jwt.Parse(tokStr.Token, func(token *jwt.Token) (interface{}, error) {
+		// Get the Google certificates
+		// TODO: -cache the certificate for the specified time
+		resp, err := http.Get("https://www.googleapis.com/oauth2/v3/certs")
+		if err != nil {
+			return nil, err
+		}
+
+		// Prebere telo odgovora v keys objekt
+		defer resp.Body.Close()
+		var keys map[string][]GoogleKey
+		decoder = json.NewDecoder(resp.Body)
+		if err := decoder.Decode(&keys); err != nil {
+			return nil, err
+		}
+
+		// Preglej kateri 'kid' se ujema z nasim tokecom in na podlagi
+		// N (modulus) in E (eksponent) zgradi javni kljuc
+		for _, v := range keys["keys"] {
+			if v.Kid == token.Header["kid"] {
+				pubKey := &rsa.PublicKey{N: new(big.Int), E: 0}
+				// FIXME: ne preverja za napake pri dekodiranju
+				nByte, _ := base64.RawURLEncoding.DecodeString(v.N)
+				eData, _ := base64.RawURLEncoding.DecodeString(v.E)
+				eBig := new(big.Int)
+				eBig.SetBytes(eData)
+				pubKey.E = int(eBig.Int64())
+				pubKey.N.SetBytes(nByte)
+
+				return pubKey, nil
+			}
+		}
+
+		// 'kid' v tokenu se ni ujemal z nobenim
+		return nil, errors.New("Google kid and token kid do not match")
+	})
+	// Preveri ce je prislo do napake med parsanjem
+	if err != nil {
+		log.Error("Problem Google tokeca: ", err)
+		respondWithError(w, 400, "Problem pri parsanju Google tokeca")
+		return
+	}
+
+	// TODO: preveri ali je AUD prisel iz biolog
+
+	// Preberi 'claims' iz tokena
+	if claims, _ := tok.Claims.(jwt.MapClaims); tok.Valid {
+		gu := new(GoogleUser)
+		gu.Email = claims["email"].(string)
+		gu.EmailVerified = claims["email_verified"].(bool)
+		gu.FamilyName = claims["family_name"].(string)
+		gu.GivenName = claims["given_name"].(string)
+		gu.ID = claims["sub"].(string)
+		gu.Name = claims["name"].(string)
+		gu.Picture = claims["picture"].(string)
+
+		// Preveri ali uporabnik obstaja (unique email)
+		u, err = h.UserHandler.UserService.UserByEmail(gu.Email)
+		if err != nil {
+			// Prislo je do napake, ali pa uporabnik ne obstaja
+			if err.Error() == "Not found" {
+				// Uporabnik ni bil najden, torej se prijavlja na novo
+				// Iz GoogleUser izgradi biolog.User in ga shrani v PB
+				u = &biolog.User{
+					ExternalID:           &gu.ID,
+					DisplayName:          &gu.Name,
+					GivenName:            &gu.GivenName,
+					FamilyName:           &gu.FamilyName,
+					Email:                &gu.Email,
+					Picture:              &gu.Picture,
+					ExternalAuthProvider: &googleAuth,
+				}
+				u, err = h.UserHandler.UserService.CreateUser(*u)
+				if err != nil {
+					log.Error("Uporabnika ni bilo mogoce kreirati: ", err)
+					respondWithError(w, http.StatusInternalServerError, "Napaka pri kreiranju uporabnika")
+					return
+				}
+			} else {
+				// Prislo je do druge napake pri iskanju uporabnika
+				log.Error("Iskanje uporabnika po emailu:", err)
+				respondWithError(w, http.StatusInternalServerError, "Napaka pri iskanju uporabnika")
+				return
+			}
+		}
+	} else {
+		respondWithError(w, 400, "Google tokec ni veljaven")
+		return
+	}
+
+	// Preveri ali imamo podatke o uporabniki za kreiranje JWT
+	if u == nil {
+		respondWithError(w, 500, "Uporabnik pri prijavljanju je nil")
+		return
+	}
+
+	// Dodeli nov JWT uporabniku
+	// TODO:
+	//  - preveri cas za potek JWT tokena (10-15min ?)
+	claims := &EmailClaims{
+		*u.Email,
+		jwt.StandardClaims{
+			ExpiresAt: time.Now().Unix() + 3600,
+			Issuer:    "biolog-app",
+		},
+	}
+	jwttok := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	ss, _ := jwttok.SignedString(jwtSignKey)
+	ssJSON, _ := json.Marshal(map[string]string{"token": ss})
+
+	// Odgovori z JWT v telesu zahtevka
+	w.WriteHeader(http.StatusOK)
+	w.Write(ssJSON)
 }
 
 // AuthHandler je pot, kamor prispe callback iz strani zunanjega avtentikatorja (Google),
@@ -250,7 +372,7 @@ func (h *Handler) GoogleLoginHandler(w http.ResponseWriter, r *http.Request) {
 //
 // Responses:
 //		401:
-//      301:
+//    301:
 //
 // TODO:
 // 	- podatke o uporabniku shrani v PB kot biolog.User
@@ -313,8 +435,7 @@ func (h *Handler) AuthHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			u, err = h.UserHandler.UserService.CreateUser(*u)
 			if err != nil {
-				log.Error("Uporabnika ni bilo mogoce kreirati")
-				log.Error(err)
+				log.Error("Uporabnika ni bilo mogoce kreirati: ", err)
 				respondWithError(w, http.StatusInternalServerError, "Napaka pri kreiranju uporabnika")
 			}
 		} else {
@@ -362,6 +483,10 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Token loci od polja 'Bearer ' in ga sparsaj
 		reqAuth := r.Header.Get("Authorization")
+		if reqAuth == "" {
+			respondWithError(w, 400, "Authorization header missing on the request")
+			return
+		}
 		tokStr := strings.Split(reqAuth, "Bearer ")[1]
 		token, err := jwt.ParseWithClaims(tokStr, &EmailClaims{}, func(token *jwt.Token) (interface{}, error) {
 			return []byte(viper.GetString("jwt.key")), nil
