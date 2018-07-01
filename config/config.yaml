@@ -11,3 +11,13 @@ database:
 # Podatki za go streznik
 server:
   address: 4000   # vrata na katerih tece streznik
+
+# Podatki zunanjih avtentikatorjev
+oauth:
+  google:
+    client-id:      # client id do Google APIs
+    client-secret:  # client secret za Google APIs
+
+# Podatki za JWT podpisovanje
+jwt:
+  key:  # string niza random znakov
